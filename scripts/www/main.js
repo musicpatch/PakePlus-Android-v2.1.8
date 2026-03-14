@@ -1,9 +1,10 @@
-// main.js - 西游猜猜看核心逻辑（随机提示+自动切题+优化得分）
+// main.js - 西游猜猜看（100分胜利+修复伪随机）
 let currentScore = 0;
 let currentQuestionIndex = 0;
 let currentHintIndex = 0;
 let isGameRunning = false;
 let usedQuestions = [];
+let shuffledCurrentHints = []; // 存储当前人物的打乱后提示
 
 // 获取元素
 const scoreNum = document.getElementById("scoreNum");
@@ -21,12 +22,11 @@ const alertContent = document.getElementById("alertContent");
 const alertBtn = document.getElementById("alertBtn");
 const alertMask = document.getElementById("alertMask");
 
-// 自定义弹窗函数（替代alert，去掉file://前缀）
+// 自定义弹窗函数
 function showAlert(text) {
   alertContent.textContent = text;
   customAlert.style.display = "block";
   alertMask.style.display = "block";
-  // 禁用游戏按钮防止重复操作
   disableAllBtns(true);
 }
 
@@ -34,12 +34,11 @@ function showAlert(text) {
 function closeAlert() {
   customAlert.style.display = "none";
   alertMask.style.display = "none";
-  // 恢复游戏按钮
   disableAllBtns(false);
   answerInput.focus();
 }
 
-// 禁用/启用所有按钮（弹窗时用）
+// 禁用/启用所有按钮
 function disableAllBtns(isDisabled) {
   if (isGameRunning) {
     hintBtn.disabled = isDisabled;
@@ -61,7 +60,17 @@ function disableAllBtns(isDisabled) {
 // 绑定弹窗确定按钮
 alertBtn.addEventListener("click", closeAlert);
 
-// 1. 随机选题（避免重复）
+// Fisher-Yates 真随机洗牌算法（无偏）
+function shuffleArray(array) {
+  const newArr = [...array]; // 复制原数组，不修改原数据
+  for (let i = newArr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [newArr[i], newArr[j]] = [newArr[j], newArr[i]]; // 交换位置
+  }
+  return newArr;
+}
+
+// 1. 随机选题（选题时打乱提示，只打乱一次）
 function randomQuestion() {
   if (usedQuestions.length >= gameData.length) {
     usedQuestions = [];
@@ -74,6 +83,11 @@ function randomQuestion() {
   currentQuestionIndex = randomIndex;
   usedQuestions.push(randomIndex);
   currentHintIndex = 0;
+  
+  // 选题时用真随机算法打乱提示
+  const currentQ = gameData[currentQuestionIndex];
+  shuffledCurrentHints = shuffleArray(currentQ.hints);
+  
   hintBox.textContent = "请点击「获取提示」查看线索";
   answerInput.value = "";
   answerInput.focus();
@@ -101,30 +115,25 @@ function startGame() {
   hintBox.textContent = "游戏开始！点击「获取提示」查看线索";
 }
 
-// 3. 获取提示（核心优化：提示随机显示 + 每看1条扣3分，最低0分）
+// 3. 获取提示（用提前打乱好的数组）
 function getHint() {
   if (!isGameRunning) {
     showAlert("请先点击「开始游戏」！");
     return;
   }
-  const currentQ = gameData[currentQuestionIndex];
-  if (currentHintIndex >= currentQ.hints.length) {
+  if (currentHintIndex >= shuffledCurrentHints.length) {
     showAlert("⚠️ 没有更多提示了！");
     return;
   }
   
-  // 关键优化：随机打乱当前人物的提示数组（不修改原数组）
-  const shuffledHints = [...currentQ.hints].sort(() => Math.random() - 0.5);
-  // 显示随机后的对应提示
-  hintBox.textContent = `提示 ${currentHintIndex + 1}：${shuffledHints[currentHintIndex]}`;
+  hintBox.textContent = `提示 ${currentHintIndex + 1}：${shuffledCurrentHints[currentHintIndex]}`;
   
   currentHintIndex++;
-  // 扣分规则：每看1条扣3分，最低0分
   currentScore = Math.max(0, currentScore - 3);
   scoreNum.textContent = currentScore;
 }
 
-// 4. 提交答案（优化得分：无提示答对得15分，每多1条提示减3分）
+// 4. 提交答案（核心修改：100分胜利）
 function submitAnswer() {
   if (!isGameRunning) {
     showAlert("请先点击「开始游戏」！");
@@ -137,7 +146,6 @@ function submitAnswer() {
   }
   
   const currentQ = gameData[currentQuestionIndex];
-  // 兼容西游人物别名（核心适配：替换为西游人物绰号/别名）
   const correctAnswers = [currentQ.name];
   const aliasMap = {
     "孙悟空": ["孙行者", "齐天大圣", "美猴王", "弼马温", "斗战胜佛"],
@@ -168,20 +176,19 @@ function submitAnswer() {
   }
 
   if (correctAnswers.includes(inputVal)) {
-    // 得分规则：基础15分，每看1条提示减3分（最低3分）
     const addScore = Math.max(3, 15 - (currentHintIndex * 3));
     currentScore += addScore;
     scoreNum.textContent = currentScore;
     
-    // 胜利条件：积分≥120分
-    if (currentScore >= 120) {
-      showAlert(`🏆 恭喜你！积分达到120分，游戏胜利！\n最终得分：${currentScore}分`);
+    // 核心修改：胜利条件改为100分
+    if (currentScore >= 100) {
+      showAlert(`🏆 恭喜你！积分达到100分，游戏胜利！\n最终得分：${currentScore}分`);
       exitGame();
       return;
     }
     
     showAlert(`🎉 恭喜答对！正确答案：${currentQ.name}\n本次得分：${addScore}分`);
-    randomQuestion(); // 自动切题，无需点下一步
+    randomQuestion();
   } else {
     showAlert(`❌ 回答错误！再试试～`);
     answerInput.select();
@@ -196,7 +203,7 @@ function showAnswer() {
   }
   const currentQ = gameData[currentQuestionIndex];
   showAlert(`✅ 当前题目答案：${currentQ.name}`);
-  randomQuestion(); // 自动切题，无需点下一步
+  randomQuestion();
 }
 
 // 6. 跳过本题
@@ -207,7 +214,7 @@ function skipQuestion() {
   }
   const currentQ = gameData[currentQuestionIndex];
   showAlert(`⏭️ 已跳过本题，答案：${currentQ.name}`);
-  randomQuestion(); // 自动切题，无需点下一步
+  randomQuestion();
 }
 
 // 7. 退出游戏
