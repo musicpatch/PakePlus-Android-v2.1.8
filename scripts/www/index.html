@@ -1,11 +1,137 @@
 <!DOCTYPE html>
-<html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>PakePlus</title>
-    </head>
-    <body>
-        PakePlus
-    </body>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>三国猜猜猜</title>
+<style>
+  /* 全局样式重置 */
+  *{
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: "微软雅黑", "Microsoft YaHei", sans-serif;
+  }
+
+  /* 页面背景 */
+  body{
+    background-color: #f5f5f5;
+    padding: 20px;
+  }
+
+  /* 游戏主容器 */
+  .game-container{
+    max-width: 480px;
+    margin: 0 auto;
+    background-color: #fff;
+    border-radius: 20px;
+    padding: 30px 20px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    text-align: center;
+  }
+
+  /* 标题样式 */
+  .game-title{
+    font-size: 30px;
+    color: #c02e2e;
+    margin-bottom: 25px;
+    font-weight: bold;
+  }
+
+  /* 积分显示 */
+  .score-area{
+    font-size: 18px;
+    color: #333;
+    margin-bottom: 20px;
+  }
+  .score-area span{
+    color: #c02e2e;
+    font-weight: bold;
+  }
+
+  /* 提示区域 */
+  .hint-area{
+    background-color: #e8f4f8;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    min-height: 80px;
+    font-size: 16px;
+    color: #333;
+    line-height: 1.5;
+  }
+
+  /* 输入框 */
+  .answer-input{
+    width: 100%;
+    height: 50px;
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    padding: 0 15px;
+    font-size: 18px;
+    text-align: center;
+    margin-bottom: 15px;
+    outline: none;
+  }
+  .answer-input::placeholder{
+    color: #999;
+  }
+
+  /* 按钮通用样式 */
+  .game-btn{
+    width: 100%;
+    height: 50px;
+    border: none;
+    border-radius: 12px;
+    font-size: 18px;
+    color: #fff;
+    cursor: pointer;
+    margin-bottom: 10px;
+    transition: background-color 0.2s;
+  }
+  /* 不同按钮颜色区分 */
+  .btn-start{ background-color: #c02e2e; }
+  .btn-hint{ background-color: #2185d0; }
+  .btn-submit{ background-color: #21ba45; }
+  .btn-answer{ background-color: #f2711c; }
+  .btn-skip{ background-color: #6435c9; }
+  .btn-exit{ background-color: #767676; }
+
+  /* 按钮点击反馈 */
+  .game-btn:hover{
+    opacity: 0.9;
+  }
+  .game-btn:active{
+    transform: scale(0.98);
+  }
+</style>
+</head>
+<body>
+
+<div class="game-container">
+  <!-- 游戏标题 -->
+  <div class="game-title">三国猜猜猜</div>
+
+  <!-- 积分显示（加ID，方便逻辑调用） -->
+  <div class="score-area">当前积分：<span id="scoreNum">0</span></div>
+
+  <!-- 提示区域（加ID，方便逻辑调用） -->
+  <div class="hint-area" id="hintBox">点击「开始游戏」按钮开始挑战</div>
+
+  <!-- 答案输入框（加ID，方便逻辑调用） -->
+  <input type="text" class="answer-input" id="answerInput" placeholder="请输入你猜测的人物名字">
+
+  <!-- 功能按钮区（保留class，后续绑定点击事件） -->
+  <button class="game-btn btn-start">开始游戏</button>
+  <button class="game-btn btn-hint">获取提示</button>
+  <button class="game-btn btn-submit">提交答案</button>
+  <button class="game-btn btn-answer">查看答案</button>
+  <button class="game-btn btn-skip">跳过本题</button>
+  <button class="game-btn btn-exit">退出游戏</button>
+</div>
+
+<!-- 引入外部文件（顺序不能乱：先数据，后逻辑） -->
+<script src="data.js"></script>
+<script src="main.js"></script>
+</body>
 </html>
