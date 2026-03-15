@@ -4,6 +4,21 @@
   padding: 0;
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
+  /* 新增：禁止文本选中，避免误操作 */
+  user-select: none;
+}
+
+/* 新增：美化滚动条（适配移动端） */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-thumb {
+  background: #ddd;
+  border-radius: 2px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 body {
@@ -17,6 +32,8 @@ body {
   max-height: 100vh;
   overflow: hidden;
   align-items: center;
+  /* 新增：适配暗黑模式 */
+  color: #333;
 }
 
 /* 标题 */
@@ -29,6 +46,8 @@ body {
   text-align: center;
   width: 100%;
   max-width: 320px;
+  /* 新增：文字抗锯齿 */
+  -webkit-font-smoothing: antialiased;
 }
 
 /* 封面图片容器 - 修复拉伸核心代码 */
@@ -60,6 +79,13 @@ body {
   border: 1px solid #ddd;
   background: #fff;
   outline: none;
+  /* 新增：下拉框样式统一 */
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='6'%3E%3Cpath fill='%23666' d='M0 0l6 6 6-6z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 12px;
 }
 
 /* 提示框 */
@@ -75,6 +101,8 @@ body {
   line-height: 1.4;
   overflow-y: auto;
   white-space: pre-wrap;
+  /* 新增：提示框内文本可选中（方便复制） */
+  user-select: text;
 }
 
 /* 分数显示 */
@@ -96,6 +124,15 @@ body {
   border: 1px solid #ccc;
   border-radius: 8px;
   outline: none;
+  /* 新增：聚焦样式，提升反馈 */
+  transition: border-color 0.2s;
+  /* 新增：输入框文本可选中 */
+  user-select: text;
+}
+/* 新增：输入框聚焦 */
+#answerInput:focus {
+  border-color: #f3a869;
+  box-shadow: 0 0 0 2px rgba(243, 168, 105, 0.2);
 }
 
 /* 按钮组 */
@@ -105,8 +142,11 @@ body {
   gap: 5px;
   width: 100%;
   max-width: 320px;
-  flex: 1;
+  /* 优化：替换flex:1，避免高度溢出 */
+  flex-shrink: 1;
   overflow-y: auto;
+  /* 新增：按钮组内边距，避免按钮贴边 */
+  padding: 2px 0;
 }
 
 button {
@@ -117,6 +157,10 @@ button {
   color: #fff;
   background: #f3a869;
   cursor: pointer;
+  /* 新增：过渡动画 */
+  transition: opacity 0.2s;
+  /* 新增：禁止文本选中 */
+  user-select: none;
 }
 button:active {
   opacity: 0.8;
@@ -137,17 +181,35 @@ button:active {
   z-index: 9999;
   justify-content: center;
   align-items: center;
+  /* 新增：弹窗动画 */
+  animation: fadeIn 0.2s ease;
 }
+/* 新增：弹窗淡入动画 */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 .alert-box {
   background: #fff;
   padding: 18px;
   border-radius: 12px;
   max-width: 240px;
   text-align: center;
+  /* 新增：弹窗缩放动画 */
+  animation: scaleIn 0.2s ease;
 }
+/* 新增：弹窗缩放动画 */
+@keyframes scaleIn {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
 .alert-text {
   font-size: 14px;
   margin-bottom: 12px;
+  /* 新增：弹窗文本可选中 */
+  user-select: text;
 }
 .alert-btn {
   padding: 7px 20px;
@@ -155,4 +217,22 @@ button:active {
   color: #fff;
   border: none;
   border-radius: 6px;
+  /* 新增：按钮过渡 */
+  transition: opacity 0.2s;
+}
+.alert-btn:active {
+  opacity: 0.8;
+}
+
+/* 新增：暗黑模式适配（可选） */
+@media (prefers-color-scheme: dark) {
+  body {
+    background: #222;
+    color: #eee;
+  }
+  #bookSelect, #tipsBox, #answerInput, .alert-box {
+    background: #333;
+    color: #eee;
+    border-color: #444;
+  }
 }
