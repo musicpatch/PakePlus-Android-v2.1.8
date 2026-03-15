@@ -3,14 +3,33 @@ let allQuestions = [];
 let remainingQuestions = [];
 let usedTipIndexes = [];
 let score = 0;
-let isGameRunning = false; // 标记游戏是否在运行
-let hasViewedAnswer = false; // 标记当前题是否查看过答案
-let answerViewCount = 0; // 查看答案次数（全局限制5次）
-const MAX_ANSWER_VIEW = 5; // 最大查看答案次数
+let isGameRunning = false;
+let hasViewedAnswer = false;
+let answerViewCount = 0;
+const MAX_ANSWER_VIEW = 5;
 
-// 初始化：监听题库切换事件（核心新增）
+// 1. 彻底修复路径逻辑（现在路径已经正确，这段能正常工作）
+function fixFilePath(path) {
+  if (!path) return '';
+  
+  // 先清理路径中的多余斜杠和 ./
+  const cleanPath = path.replace(/\/+/g, '/').replace(/\/\.\//g, '/').replace(/^\.\//, '');
+  
+  // 开发环境
+  if (window.location.protocol.startsWith('http')) {
+    return cleanPath;
+  }
+  
+  // 本地 file 协议
+  try {
+    const basePath = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1).replace(/\/+$/, '/');
+    return basePath + cleanPath;
+  } catch (e) {
+    return cleanPath;
+  }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
-  // 输入框回车提交
   const answerInput = document.getElementById("answerInput");
   answerInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
@@ -18,17 +37,15 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // 题库切换时重置游戏
   const bookSelect = document.getElementById("bookSelect");
   bookSelect.addEventListener("change", () => {
-    // 切换封面 + 重置游戏
     changeCover();
     resetGameState();
     showCustomAlert("已切换题库，请重新开始游戏！");
   });
 });
 
-// 开始游戏（核心修复：路径适配 PakEPlus 打包）
+// 2. 重点修改：使用 XMLHttpRequest 替代 fetch（兼容 file:// 协议的关键）
 function startGame() {
   if (isGameRunning) {
     showCustomAlert("游戏已在进行中！");
@@ -36,62 +53,63 @@ function startGame() {
   }
 
   const select = document.getElementById("bookSelect");
-  const relativePath = select.value; // 原路径，如 data/129.json
+  const originalPath = select.value;
 
-  if (!relativePath) {
+  if (!originalPath) {
     showCustomAlert("请先选择题库！");
     return;
   }
 
+  const realPath = fixFilePath(originalPath);
   resetGameState();
   isGameRunning = true;
 
-  // ========== 核心修复：适配 PakEPlus 打包后的路径 ==========
-  // 方案1：适配 PakEPlus 本地服务器/打包后的绝对路径
-  let fullPath = '';
-  // 判断是否是 PakEPlus 调试环境（127.0.0.1 开头）
-  if (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') {
-    // 本地调试：直接用相对路径
-    fullPath = relativePath;
-  } else {
-    // 打包后：拼接应用根路径（PakEPlus 打包后，文件在应用根目录）
-    fullPath = './' + relativePath;
-  }
+  // ========== 这里是核心修改：用 XMLHttpRequest 代替 fetch ==========
+  const xhr = new XMLHttpRequest();
+  xhr.open('GET', realPath, true);
+  
+  // file协议下，成功状态通常是 0，而不是 200
+  xhr.onload = function() {
+    if (xhr.status === 200 || xhr.status === 0) {
+      try {
+        const data = JSON.parse(xhr.responseText);
+        if (!data || !Array.isArray(data) || data.length === 0) {
+          throw new Error("题库为空或格式错误");
+        }
+        allQuestions = data;
+        remainingQuestions = [...allQuestions];
+        shuffleArray(remainingQuestions);
 
-  // 方案2（备选）：如果方案1不行，用 import.meta.url 解析根路径（兼容所有打包工具）
-  // const baseUrl = new URL('.', import.meta.url).href;
-  // const fullPath = baseUrl + relativePath;
-
-  fetch(fullPath)
-    .then(res => {
-      if (!res.ok) throw new Error(`加载失败，状态码：${res.status}（路径：${fullPath}）`);
-      return res.json();
-    })
-    .then(data => {
-      if (!data || !Array.isArray(data) || data.length === 0) {
-        throw new Error("题库为空或格式错误");
+        score = 0;
+        document.getElementById("score").innerText = score;
+        nextQuestion();
+        setTimeout(() => {
+          getMoreTip(true);
+        }, 100);
+      } catch (err) {
+        resetGameState();
+        const errorMsg = `解析题库失败：${err.message}\n请检查JSON格式`;
+        showCustomAlert(errorMsg);
+        console.error("解析错误：", err);
       }
-      allQuestions = data;
-      remainingQuestions = [...allQuestions];
-      shuffleArray(remainingQuestions);
-
-      score = 0;
-      document.getElementById("score").innerText = score;
-      nextQuestion();
-      // 自动显示第一条提示
-      setTimeout(() => {
-        getMoreTip(true);
-      }, 100);
-    })
-    .catch(err => {
+    } else {
       resetGameState();
-      // 新增：提示具体路径，方便排查
-      showCustomAlert(`题库加载失败：${err.message}\n请检查文件路径是否正确`);
-      console.error("题库加载错误：", err);
-    });
+      const errorMsg = `无法读取文件（状态码：${xhr.status}）\n请检查文件是否存在：\n${realPath}`;
+      showCustomAlert(errorMsg);
+    }
+  };
+
+  // 网络错误处理
+  xhr.onerror = function() {
+    resetGameState();
+    const errorMsg = `访问文件失败！\n请检查：\n1. 文件是否存在于 ${realPath}\n2. 文件名称是否拼写正确`;
+    showCustomAlert(errorMsg);
+    console.error("文件读取错误：", xhr);
+  };
+
+  xhr.send();
 }
 
-// 重置游戏状态（统一重置所有变量）
 function resetGameState() {
   currentQuestion = null;
   allQuestions = [];
@@ -100,13 +118,12 @@ function resetGameState() {
   score = 0;
   isGameRunning = false;
   hasViewedAnswer = false;
-  answerViewCount = 0; // 重置查看答案次数
+  answerViewCount = 0;
   document.getElementById("score").innerText = score;
   document.getElementById("answerInput").value = "";
   document.getElementById("tipsBox").innerText = "请选择题库并开始游戏";
 }
 
-// 下一题
 function nextQuestion() {
   hasViewedAnswer = false;
   if (remainingQuestions.length === 0) {
@@ -123,7 +140,6 @@ function nextQuestion() {
   document.getElementById("answerInput").value = "";
 }
 
-// 获取提示（不扣分）
 function getMoreTip(isAuto = false) {
   if (!currentQuestion) {
     if (!isAuto) {
@@ -132,7 +148,6 @@ function getMoreTip(isAuto = false) {
     return;
   }
 
-  // 查看答案后点击提示，切换新题
   if (hasViewedAnswer) {
     nextQuestion();
     setTimeout(() => {
@@ -158,7 +173,6 @@ function getMoreTip(isAuto = false) {
     return;
   }
 
-  // 不扣分，仅显示提示
   const unused = [];
   for (let i = 0; i < total; i++) {
     if (!usedTipIndexes.includes(i)) unused.push(i);
@@ -180,7 +194,6 @@ function getMoreTip(isAuto = false) {
   box.scrollTop = box.scrollHeight;
 }
 
-// 提交答案（保留加分）
 function submitAnswer() {
   if (!currentQuestion) {
     showCustomAlert("请先开始游戏！");
@@ -219,22 +232,18 @@ function submitAnswer() {
   }
 }
 
-// 查看答案（不扣分，限制5次）
 function showAnswer() {
   if (!currentQuestion) {
     showCustomAlert("请先开始游戏！");
     return;
   }
 
-  // 检查查看答案次数
   if (answerViewCount >= MAX_ANSWER_VIEW) {
     showCustomAlert(`查看答案次数已用完（${MAX_ANSWER_VIEW}/${MAX_ANSWER_VIEW}），请答题或跳过！`);
     return;
   }
 
-  // 不扣分，仅计数
   answerViewCount++;
-  // 显示答案
   let answerText = "";
   if (Array.isArray(currentQuestion.answer)) {
     answerText = `正确答案：${currentQuestion.answer.join(" / ")}\n剩余查看答案次数：${MAX_ANSWER_VIEW - answerViewCount}`;
@@ -249,20 +258,17 @@ function showAnswer() {
   hasViewedAnswer = true;
   document.getElementById("answerInput").value = "";
   
-  // 提示次数使用情况
   if (answerViewCount === MAX_ANSWER_VIEW) {
     showCustomAlert(`已用完${MAX_ANSWER_VIEW}次查看答案机会！`);
   }
 }
 
-// 跳过本题（扣1分）
 function skipQuestion() {
   if (!currentQuestion) {
     showCustomAlert("请先开始游戏！");
     return;
   }
 
-  // 跳过扣1分，最低0分
   score = Math.max(0, score - 1);
   document.getElementById("score").innerText = score;
   
@@ -270,13 +276,11 @@ function skipQuestion() {
   showCustomAlert(`跳过本题扣1分，当前分数：${score}`);
 }
 
-// 退出游戏
 function exitGame() {
   resetGameState();
   showCustomAlert(`已退出游戏\n本轮查看答案次数：${answerViewCount}/${MAX_ANSWER_VIEW}`);
 }
 
-// 自定义弹窗
 function showCustomAlert(msg) {
   document.getElementById("alertText").innerText = msg;
   document.getElementById("customAlert").style.display = "flex";
@@ -286,7 +290,6 @@ function closeCustomAlert() {
   document.getElementById("customAlert").style.display = "none";
 }
 
-// 切换封面（补充：封面路径也适配 PakEPlus）
 function changeCover() {
   const select = document.getElementById("bookSelect");
   const coverImg = document.getElementById("coverImg");
@@ -294,18 +297,10 @@ function changeCover() {
   const coverSrc = selectedOption.getAttribute("data-cover");
   
   if (coverSrc) {
-    // 适配封面图片路径
-    let fullCoverPath = '';
-    if (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') {
-      fullCoverPath = coverSrc;
-    } else {
-      fullCoverPath = './' + coverSrc;
-    }
-    coverImg.src = fullCoverPath;
+    coverImg.src = fixFilePath(coverSrc);
   }
 }
 
-// 随机打乱数组
 function shuffleArray(arr) {
   if (!Array.isArray(arr) || arr.length <= 1) return;
   for (let i = arr.length - 1; i > 0; i--) {
