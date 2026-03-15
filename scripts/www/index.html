@@ -1,13 +1,34 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+<!-- 完整优化后的头部 -->
 <head>
+  <!-- 核心字符编码：必选，保证中文正常显示 -->
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>猜猜看</title>
+  
+  <!-- 移动端适配：优化版，适配各种手机屏幕，禁止手动缩放 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  
+  <!-- 禁止浏览器自动识别手机号/邮箱，避免样式错乱 -->
+  <meta name="format-detection" content="telephone=no, email=no">
+  
+  <!-- 网页描述：提升分享/搜索体验 -->
+  <meta name="description" content="四大名著、历史人物、古诗、国家、动物主题的猜猜看趣味小游戏">
+  
+  <!-- 网页标题：清晰体现游戏主题 -->
+  <title>猜猜看 - 趣味知识问答小游戏</title>
+  
+  <!-- 引入样式文件：路径匹配你的项目结构 -->
   <link rel="stylesheet" href="style.css">
+  
+  <!-- 网页图标（可选）：有图标就放images/favicon.ico，无则删除此行 -->
+  <link rel="icon" href="images/favicon.ico" type="image/x-icon">
+  
+  <!-- 开发阶段禁用缓存：修改CSS/JS后刷新即生效，上线可删除 -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 </head>
-<body>
 
+<!-- 你原有完整的body内容，无任何修改 -->
+<body>
   <h1 class="game-title">猜猜看</h1>
 
   <!-- 封面图片 -->
