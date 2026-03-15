@@ -1,11 +1,96 @@
 <!DOCTYPE html>
-<html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>PakePlus</title>
-    </head>
-    <body>
-        PakePlus
-    </body>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>猜猜看</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <h1 class="game-title">猜猜看</h1>
+
+  <!-- 封面图片 -->
+  <div class="cover-box">
+    <img id="coverImg" src="images/default_cover.jpg" alt="封面">
+  </div>
+
+  <!-- 选择题库：文件名改回 sanguo_easy.json -->
+  <select id="bookSelect" onchange="changeCover()">
+    <option 
+      value="data/sanguo_easy.json" 
+      data-cover="images/sanguo_cover.jpg">
+      三国演义
+    </option>
+    <option 
+      value="data/shuihu_simple.json" 
+      data-cover="images/shuihu_cover.jpg">
+      水浒传
+    </option>
+	<option 
+	value="data/xiyouji.json" 
+	data-cover="images/xiyou.jpg">
+	西游记
+	</option>
+	<option 
+	value="data/honglou.json" 
+	data-cover="images/honglou.jpg">
+	红楼梦
+	</option>
+	<option
+	value="data/huangdi.json" 
+	data-cover="images/huangdi.jpg">
+	历代皇帝
+	</option>
+	<option
+	value="data/129.json" 
+	data-cover="images/129.jpg">
+	小学必背古诗
+	</option>
+	<option
+	value="data/150mingren.json" 
+	data-cover="images/150mingren.jpg">
+	中国历史人物
+	</option>
+	<option
+	value="data/197.json" 
+	data-cover="images/guojia.jpg">
+	世界国家
+	</option>
+	<option
+	value="data/dongwu.json" 
+	data-cover="images/dongwu.jpg">
+	动物世界
+	</option>
+  </select>
+
+  <!-- 提示框 -->
+  <div id="tipsBox">请选择题库并开始游戏</div>
+
+  <!-- 分数 -->
+  <div class="score-box">当前分数：<span id="score">0</span></div>
+
+  <!-- 答案输入 -->
+  <input type="text" id="answerInput" placeholder="请输入答案">
+
+  <!-- 按钮 -->
+  <div class="btn-group">
+    <button onclick="getMoreTip()">获取提示</button>
+    <button onclick="submitAnswer()">提交答案</button>
+    <button onclick="showAnswer()">查看答案</button>
+    <button onclick="skipQuestion()">跳过本题</button>
+    <button class="btn-start" onclick="startGame()">开始游戏</button>
+    <button onclick="exitGame()">退出游戏</button>
+  </div>
+
+  <!-- 弹窗 -->
+  <div id="customAlert">
+    <div class="alert-box">
+      <p class="alert-text" id="alertText"></p>
+      <button class="alert-btn" onclick="closeCustomAlert()">确定</button>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
 </html>
