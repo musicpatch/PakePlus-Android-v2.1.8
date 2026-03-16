@@ -1,11 +1,55 @@
 <!DOCTYPE html>
-<html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>PakePlus</title>
-    </head>
-    <body>
-        PakePlus
-    </body>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>经典华容道</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="game-container">
+    <h1>华容道</h1>
+    
+    <!-- 模式切换 -->
+    <div class="mode-group">
+      <button id="btn-classic" class="mode-btn active">经典模式</button>
+      <button id="btn-random" class="mode-btn">随机模式</button>
+    </div>
+
+    <!-- 步数+计时 -->
+    <div class="info-bar">
+      <span>步数：<b id="step-num">0</b></span>
+      <span>时间：<b id="time-num">00:00</b></span>
+    </div>
+
+    <!-- 棋盘+出口 -->
+    <div class="board" id="board">
+      <div class="exit"></div>
+    </div>
+
+    <div class="tip">滑动棋子移动 | 曹操触底出口即胜利</div>
+  </div>
+
+  <!-- 引入脚本 -->
+  <script src="config.js"></script>
+  <script src="classic.js"></script>
+  <script src="random.js"></script>
+  <script>
+    // 初始化模式切换
+    document.getElementById('btn-classic').addEventListener('click', () => {
+      document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+      document.getElementById('btn-classic').classList.add('active');
+      startClassicMode(); // 启动经典模式
+    });
+
+    document.getElementById('btn-random').addEventListener('click', () => {
+      document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+      document.getElementById('btn-random').classList.add('active');
+      startRandomMode(); // 启动随机模式
+    });
+
+    // 页面加载默认启动经典模式
+    window.onload = () => startClassicMode();
+  </script>
+</body>
 </html>
