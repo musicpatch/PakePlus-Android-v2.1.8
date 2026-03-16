@@ -127,11 +127,31 @@ function checkWin() {
     stopTimer();
     // 延迟300ms提示，让棋子回正
     setTimeout(() => {
-      alert('🎉 恭喜！曹操已到达出口，游戏胜利！');
+      // 替换原生alert为自定义弹窗
+      showCustomAlert('🎉 恭喜！曹操已到达出口，游戏胜利！');
     }, 300);
     return true;
   }
   return false;
+}
+
+// 新增：自定义弹窗函数（无原生标题，样式更美观）
+function showCustomAlert(message) {
+  // 先移除已存在的弹窗（避免重复）
+  const oldAlert = document.querySelector('.custom-alert');
+  if (oldAlert) oldAlert.remove();
+
+  // 创建弹窗DOM
+  const alertEl = document.createElement('div');
+  alertEl.className = 'custom-alert';
+  alertEl.innerHTML = `
+    <div class="custom-alert-content">
+      <p>${message}</p>
+      <button class="custom-alert-btn" onclick="this.closest('.custom-alert').remove()">确定</button>
+    </div>
+  `;
+  // 添加到页面
+  document.body.appendChild(alertEl);
 }
 
 // 创建棋子DOM并添加到棋盘
