@@ -1,0 +1,137 @@
+/* 全局重置 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Microsoft YaHei", sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background: #f5f5f5; /* 舒服的浅灰底 */
+  display: flex;
+  justify-content: center;
+  padding: 20px 10px;
+}
+
+.game-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+  width: 100%;
+  max-width: 350px;
+}
+
+h1 {
+  color: #333; /* 常规深灰标题 */
+  font-size: 28px;
+  letter-spacing: 1px;
+}
+
+/* 模式按钮 */
+.mode-group {
+  display: flex;
+  gap: 12px;
+}
+.mode-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 10px;
+  background: #e0e0e0; /* 常规浅灰按钮 */
+  color: #333;
+  font-size: 16px;
+  cursor: pointer;
+}
+.mode-btn.active {
+  background: #4285f4; /* 舒服的蓝色主色 */
+  color: #fff;
+}
+.mode-btn:active {
+  transform: scale(0.98);
+}
+
+/* 步数+计时 */
+.info-bar {
+  display: flex;
+  gap: 30px;
+  font-size: 15px;
+  color: #555; /* 常规灰色文字 */
+}
+.info-bar b {
+  color: #4285f4;
+}
+
+/* 棋盘容器（4列×5行） */
+.board {
+  width: 320px;
+  height: 400px;
+  background: #f0f0f0; /* 棋盘浅灰底 */
+  border: 4px solid #ccc; /* 常规边框 */
+  border-radius: 10px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* 底部出口 */
+.exit {
+  position: absolute;
+  left: 50%;
+  bottom: -5px;
+  transform: translateX(-50%);
+  width: 80px;
+  height: 14px;
+  background: #ff6d4a; /* 舒服的橙红色出口 */
+  border-radius: 6px;
+}
+
+/* 棋子基础样式（常规色块，无渐变） */
+.piece {
+  position: absolute;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: bold;
+  font-size: 14px;
+  border: 2px solid rgba(0,0,0,0.1); /* 轻微边框增加层次感 */
+  user-select: none;
+  touch-action: none;
+  transition: all 0.1s ease; /* 滑动过渡更丝滑 */
+}
+
+/* 棋子常规色块（风格统一，舒服色系） */
+.piece-caocao {
+  background: #e53935; /* 曹操：正红色（醒目） */
+}
+.piece-guan {
+  background: #4285f4; /* 关羽：天蓝色 */
+}
+.piece-zhang {
+  background: #fbbc05; /* 张飞：明黄色 */
+}
+.piece-huang {
+  background: #34a853; /* 黄忠：草绿色 */
+}
+.piece-zhao {
+  background: #9c27b0; /* 赵云：紫色 */
+}
+.piece-ma {
+  background: #ff9800; /* 马超：橙色 */
+}
+.piece-soldier {
+  background: #607d8b; /* 小兵：深灰色（常规色块） */
+}
+
+/* 棋子选中效果（强化手感） */
+.piece:active {
+  transform: scale(0.95); /* 更明显的按压效果 */
+  opacity: 0.85;
+  box-shadow: 0 0 10px rgba(0,0,0,0.2); /* 增加阴影强化选中感 */
+}
+
+.tip {
+  font-size: 14px;
+  color: #666;
+}
