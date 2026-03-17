@@ -5,6 +5,9 @@ function clearBoard() {
   board.innerHTML = ""; // 清空棋盘DOM
 }
 
+// 全局新增：保存当前布局的初始状态
+let INITIAL_LAYOUT = null;
+
 // 更新UI
 function updateUI() {
   $("step-num").innerText = GAME_STATE.step;
@@ -26,8 +29,8 @@ function startTimer() {
   }, 1000);
 }
 
-// 重置游戏
-function resetGame() {
+// 重置游戏（保留原有逻辑，新增记录初始布局参数）
+function resetGame(needRecordLayout = true) {
   // 清空原有状态
   GAME_STATE.pieces = [];
   GAME_STATE.step = 0;
@@ -42,9 +45,57 @@ function resetGame() {
   clearBoard();
   // 更新UI
   updateUI();
+
+  // 如果需要记录初始布局，先清空原有记录
+  if (needRecordLayout) {
+    INITIAL_LAYOUT = null;
+  }
 }
 
-// 创建棋子
+// 新增：保存初始布局（棋子位置）
+function saveInitialLayout() {
+  INITIAL_LAYOUT = GAME_STATE.pieces.map(piece => ({
+    type: piece.type,
+    x: piece.x,
+    y: piece.y,
+    w: piece.w,
+    h: piece.h
+  }));
+}
+
+// 新增：恢复初始布局（核心复原逻辑）
+function restoreInitialLayout() {
+  if (!INITIAL_LAYOUT) return;
+
+  // 暂停游戏（避免拖动冲突）
+  const wasPlaying = GAME_STATE.isPlaying;
+  GAME_STATE.isPlaying = false;
+  clearInterval(GAME_STATE.timer);
+
+  // 清空棋盘和网格
+  clearBoard();
+  GAME_STATE.pieces = [];
+  GAME_STATE.grid = Array(GAME_CONFIG.rows).fill().map(() => Array(GAME_CONFIG.cols).fill(0));
+
+  // 重新创建初始布局的棋子
+  let pieceId = 1;
+  INITIAL_LAYOUT.forEach(piece => {
+    createPiece(piece.type, piece.x, piece.y, pieceId, piece.w, piece.h);
+    pieceId++;
+  });
+
+  // 重新绑定拖动事件
+  bindPieceDrag();
+
+  // 恢复游戏状态（步数/时间不变，仅恢复位置）
+  GAME_STATE.isPlaying = wasPlaying;
+  if (wasPlaying) {
+    startTimer();
+  }
+  updateUI();
+}
+
+// 创建棋子（原有逻辑不变）
 function createPiece(type, x, y, id, w, h) {
   const pieceW = w || type.w;
   const pieceH = h || type.h;
@@ -78,7 +129,7 @@ function createPiece(type, x, y, id, w, h) {
   return piece;
 }
 
-// 占用网格
+// 占用网格（原有逻辑不变）
 function occupyGrid(x, y, w, h, id) {
   for (let dy = 0; dy < h; dy++) {
     for (let dx = 0; dx < w; dx++) {
@@ -91,7 +142,7 @@ function occupyGrid(x, y, w, h, id) {
   }
 }
 
-// 检查区域是否为空
+// 检查区域是否为空（原有逻辑不变）
 function isAreaEmpty(x, y, w, h) {
   for (let dy = 0; dy < h; dy++) {
     for (let dx = 0; dx < w; dx++) {
@@ -110,7 +161,7 @@ function isAreaEmpty(x, y, w, h) {
   return true;
 }
 
-// 检查胜利
+// 检查胜利（原有逻辑不变）
 function checkWin() {
   // 找到曹操
   const caocao = GAME_STATE.pieces.find(p => p.type.name === "曹操");
@@ -137,14 +188,14 @@ function checkWin() {
   return false;
 }
 
-// 显示弹窗
+// 显示弹窗（原有逻辑不变）
 function showAlert(title, content) {
   $("alert-title").innerText = title;
   $("alert-content").innerText = content;
   $("customAlert").style.display = "flex";
 }
 
-// 启动经典模式
+// 启动经典模式（新增保存初始布局）
 function startClassicMode() {
   resetGame();
   const classicPieces = [
@@ -166,10 +217,12 @@ function startClassicMode() {
     pieceId++;
   });
 
+  // 保存经典模式初始布局
+  saveInitialLayout();
   bindPieceDrag();
 }
 
-// 绑定棋子拖动事件
+// 绑定棋子拖动事件（原有逻辑不变）
 function bindPieceDrag() {
   let startX, startY;
   let currentPiece;
@@ -249,7 +302,7 @@ function bindPieceDrag() {
   }
 }
 
-// 移动棋子
+// 移动棋子（原有逻辑不变）
 function movePiece(piece, targetX, targetY) {
   if (targetX === piece.x && targetY === piece.y) return;
 
@@ -288,7 +341,7 @@ function movePiece(piece, targetX, targetY) {
   checkWin();
 }
 
-// 启动随机模式
+// 启动随机模式（新增保存初始布局）
 function startRandomMode() {
   resetGame();
 
@@ -314,11 +367,13 @@ function startRandomMode() {
     pieceId++;
   });
 
+  // 保存随机模式初始布局
+  saveInitialLayout();
   bindPieceDrag();
   console.log(`随机模式生成成功，重试次数：${retryCount}`);
 }
 
-// 生成随机布局
+// 生成随机布局（原有逻辑不变）
 function generateRandomLayout() {
   const tempGrid = Array(GAME_CONFIG.rows).fill().map(() => Array(GAME_CONFIG.cols).fill(0));
   const layout = [];
@@ -358,7 +413,7 @@ function generateRandomLayout() {
   return layout;
 }
 
-// 有解判定
+// 有解判定（原有逻辑不变）
 function isLayoutSolvable(layout) {
   const grid = Array(GAME_CONFIG.rows).fill().map(() => Array(GAME_CONFIG.cols).fill(0));
   let inversionCount = 0;
@@ -411,7 +466,7 @@ function isLayoutSolvable(layout) {
   return (inversionCount + emptyRowFromBottom) % 2 === 0;
 }
 
-// 获取随机有效位置
+// 获取随机有效位置（原有逻辑不变）
 function getRandomValidPos(w, h, tempGrid) {
   let validPos = null;
   let retry = 0;
@@ -459,7 +514,7 @@ function getRandomValidPos(w, h, tempGrid) {
   return validPos;
 }
 
-// 占用临时网格
+// 占用临时网格（原有逻辑不变）
 function occupyTempGrid(x, y, w, h, tempGrid) {
   for (let dy = 0; dy < h; dy++) {
     for (let dx = 0; dx < w; dx++) {
@@ -470,7 +525,7 @@ function occupyTempGrid(x, y, w, h, tempGrid) {
   }
 }
 
-// 经典布局兜底
+// 经典布局兜底（原有逻辑不变）
 function getClassicLayoutBackup() {
   return [
     { type: GAME_CONFIG.pieceTypes.caocao, x: 1, y: 0 },
@@ -486,7 +541,7 @@ function getClassicLayoutBackup() {
   ];
 }
 
-// 启动闯关模式
+// 启动闯关模式（新增保存初始布局）
 function startLevelMode(level) {
   resetGame();
   GAME_STATE.currentLevel = level;
@@ -504,11 +559,13 @@ function startLevelMode(level) {
     pieceId++;
   });
 
+  // 保存闯关模式初始布局
+  saveInitialLayout();
   bindPieceDrag();
   updateUI();
 }
 
-// 初始化事件绑定
+// 初始化事件绑定（新增复原按钮点击事件）
 function initEvent() {
   // 模式切换
   $("btn-random").onclick = () => {
@@ -523,7 +580,16 @@ function initEvent() {
     startLevelMode(GAME_STATE.currentLevel); // 闯关会加载当前关 → 不会空白
   };
 
-  // ===== 修复后的提示按钮点击事件 =====
+  // ===== 新增：复原按钮点击事件 =====
+  $("btn-reset-layout").onclick = () => {
+    if (!INITIAL_LAYOUT) {
+      showAlert("提示", "暂无可复原的布局");
+      return;
+    }
+    restoreInitialLayout();
+  };
+
+  // 提示按钮点击事件（修复后）
   $("btn-show-tip").onclick = () => {
     const tipContent = `华容道游戏规则：
 1. 核心目标：将2×2大小的「曹操」方块移动到棋盘下方的出口位置；
@@ -540,7 +606,7 @@ function initEvent() {
     return false;
   };
 
-  // ===== 修复后的弹窗关闭逻辑 =====
+  // 弹窗关闭（修复后）
   $("alert-ok").onclick = () => {
     const alertTitle = $("alert-title").innerText;
     $("customAlert").style.display = "none";
@@ -575,7 +641,7 @@ function initEvent() {
   };
 }
 
-// 构建选关网格
+// 构建选关网格（原有逻辑不变）
 function buildLevelGrid() {
   const grid = $("level-grid");
   grid.innerHTML = "";
@@ -599,7 +665,7 @@ function buildLevelGrid() {
   }
 }
 
-// 页面加载完成初始化
+// 页面加载完成初始化（原有逻辑不变）
 window.onload = () => {
   // 初始化样式（抖动动画）
   const style = document.createElement("style");
