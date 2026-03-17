@@ -1,11 +1,53 @@
 <!DOCTYPE html>
-<html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>PakePlus</title>
-    </head>
-    <body>
-        PakePlus
-    </body>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>华容道</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="game-container">
+  <h1>华容道</h1>
+  <div class="mode-group">
+	  <button id="btn-level" class="mode-btn active">闯关模式</button>
+    <button id="btn-random" class="mode-btn">随机模式</button>
+  </div>
+  <div class="info-bar">
+    <span>步数：<b id="step-num">0</b></span>
+    <span>时间：<b id="time-num">00:00</b></span>
+    <span>关卡：<b id="level-num">1</b></span>
+  </div>
+  <div class="func-btn-group">
+    <button id="btn-select-level" class="func-btn">选关</button>
+    <button id="btn-show-tip" class="func-btn">提示</button>
+  </div>
+
+  <div class="board-wrapper">
+    <div class="board" id="board"></div>
+    <div class="exit">出口</div>
+  </div>
+
+  <div class="tip" id="tip-text">加载中...</div>
+</div>
+
+<div class="custom-alert-mask" id="customAlert">
+  <div class="alert-box">
+    <div id="alert-title">标题</div>
+    <div id="alert-content">内容</div>
+    <button id="alert-ok">确定</button>
+  </div>
+</div>
+
+<div class="level-mask" id="levelMask">
+  <div class="level-panel">
+    <div id="level-grid"></div>
+    <button id="level-close">关闭</button>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="game.js"></script>
+<script src="level.js"></script>
+</body>
 </html>
