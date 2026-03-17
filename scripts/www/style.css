@@ -58,12 +58,12 @@ h1 {
   gap: 10px;
 }
 
+/* 重构 func-btn 基础样式，统一文字为白色 */
 .func-btn {
   padding: 9px 18px;
   border-radius: 10px;
   border: none;
-  background: #ffcc33;
-  color: #222;
+  color: #fff; /* 统一文字白色，提升可读性 */
   font-size: 15px;
   cursor: pointer;
   transition: 0.2s;
@@ -72,13 +72,29 @@ h1 {
   background: #ddd;
   color: #999;
 }
-/* ===== 新增：提示按钮专属样式 ===== */
+
+/* 选关按钮：橙色（区分选择功能） */
+#btn-select-level {
+  background: #ff9800;
+}
+#btn-select-level:hover {
+  background: #f57c00; /* 悬浮加深，交互更友好 */
+}
+
+/* 复原按钮：绿色（醒目，代表重置/恢复） */
+#btn-reset-layout {
+  background: #34a853;
+}
+#btn-reset-layout:hover {
+  background: #2d8f46;
+}
+
+/* 提示按钮：蓝色（和活跃模式按钮同色系，协调醒目） */
 #btn-show-tip {
-  background: #4285f4; /* 蓝色（和活跃模式按钮同色系，醒目且协调） */
-  color: #fff; /* 文字白色，对比清晰 */
+  background: #4285f4;
 }
 #btn-show-tip:hover {
-  background: #3367d6; /* 鼠标悬浮加深，提升交互体验 */
+  background: #3367d6;
 }
 
 .board-wrapper {
