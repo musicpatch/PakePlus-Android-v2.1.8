@@ -1,11 +1,89 @@
 <!DOCTYPE html>
-<html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>PakePlus</title>
-    </head>
-    <body>
-        PakePlus
-    </body>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>技能五子棋</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="game-title">技能五子棋</div>
+
+<div class="player-row">
+    <div>
+        <label>黑棋：</label>
+        <select id="p1_type">
+            <option value="human">真人</option>
+            <option value="ai">AI</option>
+        </select>
+    </div>
+    <div>
+        <label>白棋：</label>
+        <select id="p2_type">
+            <option value="human">真人</option>
+            <option value="ai">AI</option>
+        </select>
+    </div>
+</div>
+
+<!-- 技能模式：横排 标签+下拉+技能描述 同一行 -->
+<div class="hero-select-row" id="heroSelectRow" style="display:none;">
+    <div class="hero-item">
+        <label>先手英雄</label>
+        <select id="firstHeroSelect"></select>
+        <div class="hero-desc" id="firstHeroDesc">技能描述</div>
+    </div>
+    <div class="hero-item">
+        <label>后手英雄</label>
+        <select id="secondHeroSelect" disabled></select>
+        <div class="hero-desc" id="secondHeroDesc">技能描述</div>
+    </div>
+</div>
+
+<div class="oper-bar">
+    <button id="traditionalMode" class="active">传统模式</button>
+    <button id="skillMode">技能模式</button>
+    <button id="startGame">开始游戏</button>
+    <button id="pauseGame" disabled>暂停</button>
+    <button id="regretStep" disabled>悔步</button>
+</div>
+
+<div class="skill-state-container" id="skillStateContainer" style="display:none;">
+    <div class="skill-item">
+        <span id="p1SkillInfo">黑棋：未选择</span>
+        <button id="p1UseSkill" disabled>使用技能</button>
+    </div>
+    <div class="skill-item">
+        <span id="p2SkillInfo">白棋：未选择</span>
+        <button id="p2UseSkill" disabled>使用技能</button>
+    </div>
+</div>
+
+<div class="chess-board-container">
+    <canvas id="chessBoard"></canvas>
+</div>
+
+<div class="mask" id="commonMask"></div>
+<div class="modal id="commonModal">
+    <h3 id="modalTitle">提示</h3>
+    <div id="modalContent"></div>
+    <div class="modal-buttons">
+        <button id="modalConfirmBtn">确认</button>
+    </div>
+</div>
+
+<div class="mask" id="toastMask"></div>
+<div class="modal toast-modal" id="toastModal">
+    <div class="toast-content"></div>
+</div>
+
+<script src="js/heroLib.js"></script>
+<script src="js/config.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/board.js"></script>
+<script src="js/skillSystem.js"></script>
+<script src="js/ai.js"></script>
+<script src="js/game.js"></script>
+</body>
 </html>
