@@ -1,0 +1,162 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: "微软雅黑", sans-serif;
+}
+body {
+    background: #f8f8f8;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px;
+    min-height: 100vh;
+    max-width: 100vw;
+    overflow-x: hidden;
+}
+.game-title {
+    font-size: 22px;
+    margin: 10px 0;
+    text-align: center;
+}
+
+/* 玩家行：横排 */
+.player-row {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    width: 100%;
+    max-width: 340px;
+    margin-bottom: 10px;
+}
+.player-row select {
+    width: 90px;
+    padding: 4px;
+    font-size: 14px;
+}
+
+/* 英雄选择区：横排！紧凑！不高！ */
+.hero-select-row {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+    max-width: 340px;
+    margin-bottom: 10px;
+}
+.hero-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    font-size: 14px;
+}
+.hero-item label {
+    width: 50px;
+    flex-shrink: 0;
+}
+.hero-item select {
+    width: 90px;
+    flex-shrink: 0;
+    padding: 4px;
+}
+.hero-desc {
+    flex: 1;
+    font-size: 12px;
+    color: #666;
+    line-height: 1.2;
+    word-break: break-word;
+}
+
+/* 按钮行 */
+.oper-bar {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+    max-width: 340px;
+    margin-bottom: 10px;
+}
+.oper-bar button {
+    padding: 6px 10px;
+    font-size: 14px;
+    border-radius: 6px;
+    border: none;
+    background: #eee;
+}
+.oper-bar button.active {
+    background: #8C9E80;
+    color: #fff;
+}
+
+/* 技能状态 */
+.skill-state-container {
+    width: 100%;
+    max-width: 340px;
+    font-size: 14px;
+    margin-bottom: 10px;
+}
+.skill-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+}
+.skill-item button {
+    padding: 4px 8px;
+    font-size: 12px;
+    border: none;
+    border-radius: 4px;
+    background: #8C9E80;
+    color: #fff;
+}
+.skill-item button:disabled {
+    background: #ccc;
+}
+
+/* 棋盘 */
+.chess-board-container {
+    width: 90vw;
+    max-width: 320px;
+    height: 90vw;
+    max-height: 320px;
+    aspect-ratio: 1/1;
+}
+#chessBoard {
+    width: 100%;
+    height: 100%;
+    background: #8C9E80;
+    border-radius: 8px;
+}
+
+/* 弹窗 */
+.mask {
+    position: fixed;
+    top:0; left:0; width:100vw; height:100vh;
+    background: rgba(0,0,0,0.5);
+    z-index: 99;
+    display: none;
+}
+.modal {
+    position: fixed;
+    top:50%; left:50%;
+    transform: translate(-50%,-50%);
+    background: #fff;
+    padding: 16px;
+    border-radius: 8px;
+    z-index: 100;
+    display: none;
+    min-width: 260px;
+    max-width: 90vw;
+}
+.modal-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 16px;
+}
+.toast-modal {
+    padding: 12px 20px;
+    max-width: 240px;
+    text-align: center;
+}
