@@ -8,18 +8,15 @@ const Game={
         this.updateSkillUI();
     },
 
-    // 适配新UI：英雄选择+横排技能描述
     initHeroSelect(){
         const firstHeroSelect = document.getElementById("firstHeroSelect");
-        const firstHeroDesc = document.getElementById("firstHeroDesc"); // 新ID
+        const firstHeroDesc = document.getElementById("firstHeroDesc");
         const secondHeroSelect = document.getElementById("secondHeroSelect");
-        const secondHeroDesc = document.getElementById("secondHeroDesc"); // 新ID
+        const secondHeroDesc = document.getElementById("secondHeroDesc");
 
-        // 清空原有内容
         firstHeroSelect.innerHTML = "";
         secondHeroSelect.innerHTML = "";
 
-        // 填充英雄库（下拉框只显示英雄名）
         HERO_LIB.forEach(hero => {
             const option = document.createElement("option");
             option.value = hero.id;
@@ -28,18 +25,13 @@ const Game={
             firstHeroSelect.appendChild(option);
         });
 
-        // 先手英雄选择事件
         firstHeroSelect.onchange = ()=>{
             const selectedId = parseInt(firstHeroSelect.value);
-            // 更新技能描述（新ID）
             const selectedHero = getHeroById(selectedId);
             firstHeroDesc.textContent = selectedHero.skillDesc;
             
-            // 清空后手选项
             secondHeroSelect.innerHTML = "";
-            // 获取未选择的英雄
             const unselectedHeroes = getUnselectedHeroes([selectedId]);
-            // 填充后手选项
             unselectedHeroes.forEach(hero => {
                 const option = document.createElement("option");
                 option.value = hero.id;
@@ -48,32 +40,27 @@ const Game={
                 secondHeroSelect.appendChild(option);
             });
 
-            // 启用/禁用后手选择框
             secondHeroSelect.disabled = unselectedHeroes.length === 0;
-            // 默认选中第一个并更新描述
             if(unselectedHeroes.length > 0){
                 secondHeroSelect.selectedIndex = 0;
                 const defaultHero = getHeroById(parseInt(secondHeroSelect.value));
-                secondHeroDesc.textContent = defaultHero.skillDesc; // 新ID
+                secondHeroDesc.textContent = defaultHero.skillDesc;
             } else {
-                secondHeroDesc.textContent = "无可用英雄"; // 新ID
+                secondHeroDesc.textContent = "无可用英雄";
             }
         };
 
-        // 后手英雄选择事件
         secondHeroSelect.onchange = ()=>{
             if(secondHeroSelect.options.length === 0) return;
             const selectedId = parseInt(secondHeroSelect.value);
             const selectedHero = getHeroById(selectedId);
-            secondHeroDesc.textContent = selectedHero.skillDesc; // 新ID
+            secondHeroDesc.textContent = selectedHero.skillDesc;
         };
 
-        // 初始化：默认选中第一个英雄并显示描述
         if(HERO_LIB.length > 0){
             firstHeroSelect.selectedIndex = 0;
             const defaultHero = getHeroById(parseInt(firstHeroSelect.value));
-            firstHeroDesc.textContent = defaultHero.skillDesc; // 新ID
-            // 触发onchange，初始化后手选择框
+            firstHeroDesc.textContent = defaultHero.skillDesc;
             firstHeroSelect.onchange();
         }
     },
@@ -129,11 +116,14 @@ const Game={
             this.tryAI();
         };
 
-        // 暂停游戏
+        // 暂停按钮改成投降按钮
         document.getElementById("pauseGame").onclick = ()=>{
-            GAME_STATE.isPlaying = !GAME_STATE.isPlaying;
-            this.updateButtonState();
-            Utils.showToast(GAME_STATE.isPlaying ? "游戏继续" : "游戏暂停");
+            if(GAME_STATE.isPlaying){
+                GAME_STATE.isPlaying = false;
+                Utils.showToast("玩家已认输！");
+                // 清空棋盘
+                this.reset();
+            }
         };
 
         // 悔步
@@ -166,7 +156,18 @@ const Game={
 
         // 优先处理技能使用
         if(GAME_STATE.skillTemp.usingSkillPlayer !== 0){
-            SkillSystem.executeSkill(boardPos.x, boardPos.y);
+            const success = SkillSystem.executeSkill(boardPos.x, boardPos.y);
+            if(success){
+                // 技能使用后检查是否赢了
+                if(Board.checkWin(boardPos.x, boardPos.y)){
+                    Utils.showToast(`${GAME_STATE.skillTemp.usingSkillPlayer===1?"黑棋":"白棋"}获胜！`);
+                    GAME_STATE.isPlaying = false;
+                    // 胜利后清空棋盘
+                    setTimeout(() => {
+                        this.reset();
+                    }, 1500);
+                }
+            }
             this.updateSkillUI();
             return;
         }
@@ -180,6 +181,17 @@ const Game={
 
         // 正常落子 + 关羽步数统计
         if(Board.placeChess(boardPos.x, boardPos.y, GAME_STATE.currentPlayer)){
+            // 检查落子后是否赢了
+            if(Board.checkWin(boardPos.x, boardPos.y)){
+                Utils.showToast(`${GAME_STATE.currentPlayer===1?"黑棋":"白棋"}获胜！`);
+                GAME_STATE.isPlaying = false;
+                // 胜利后清空棋盘
+                setTimeout(() => {
+                    this.reset();
+                }, 1500);
+                return;
+            }
+
             if(GAME_STATE.currentMode === "skill"){
                 SkillSystem.addStep(GAME_STATE.currentPlayer);
             }
@@ -193,6 +205,7 @@ const Game={
         GAME_STATE.currentPlayer = GAME_STATE.currentPlayer === CONFIG.PLAYER.BLACK ? CONFIG.PLAYER.WHITE : CONFIG.PLAYER.BLACK;
     },
 
+    // 重置游戏（清空棋盘+重置状态）
     reset(){
         GAME_STATE.isPlaying = false;
         GAME_STATE.currentPlayer = CONFIG.PLAYER.BLACK;
@@ -204,13 +217,16 @@ const Game={
         GAME_STATE.history = [];
         GAME_STATE.playerConfig[1].heroState = null;
         GAME_STATE.playerConfig[2].heroState = null;
-        Board.init();
+        
+        // 清空棋盘
+        Board.init(); // 调用Board的初始化，清空棋盘
         this.updateButtonState();
         this.updateSkillUI();
     },
 
     updateButtonState(){
         document.getElementById("startGame").disabled = GAME_STATE.isPlaying;
+        // 投降按钮：游戏进行中才可用
         document.getElementById("pauseGame").disabled = !GAME_STATE.isPlaying;
         document.getElementById("regretStep").disabled = !GAME_STATE.isPlaying || GAME_STATE.history.length === 0;
     },
@@ -250,12 +266,30 @@ const Game={
 
         const currentType = GAME_STATE.playerConfig[GAME_STATE.currentPlayer].type;
         if(currentType === "ai"){
-            aiThink();
+            aiThink(); // 直接调用AI思考
         }
     }
 };
 
 // 页面加载完成初始化
 window.onload = ()=>{
+    // 初始化游戏状态（防止AI找不到GAME_STATE）
+    if(!GAME_STATE){
+        GAME_STATE = {
+            isPlaying: false,
+            currentMode: "traditional",
+            currentPlayer: CONFIG.PLAYER.BLACK,
+            boardData: Array(CONFIG.BOARD_SIZE).fill().map(() => Array(CONFIG.BOARD_SIZE).fill(0)),
+            skillTemp: {
+                usingSkillPlayer: 0,
+                skillType: ""
+            },
+            playerConfig: {
+                1: { type: "human" },
+                2: { type: "ai" }
+            },
+            history: []
+        };
+    }
     Game.init();
 };
