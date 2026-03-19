@@ -27,7 +27,6 @@
     </div>
 </div>
 
-<!-- 技能模式：横排 标签+下拉+技能描述 同一行 -->
 <div class="hero-select-row" id="heroSelectRow" style="display:none;">
     <div class="hero-item">
         <label>先手英雄</label>
@@ -45,7 +44,7 @@
     <button id="traditionalMode" class="active">传统模式</button>
     <button id="skillMode">技能模式</button>
     <button id="startGame">开始游戏</button>
-    <button id="pauseGame" disabled>暂停</button>
+    <button id="pauseGame" disabled>投降</button> <!-- 暂停改投降 -->
     <button id="regretStep" disabled>悔步</button>
 </div>
 
@@ -65,7 +64,7 @@
 </div>
 
 <div class="mask" id="commonMask"></div>
-<div class="modal id="commonModal">
+<div class="modal" id="commonModal">
     <h3 id="modalTitle">提示</h3>
     <div id="modalContent"></div>
     <div class="modal-buttons">
