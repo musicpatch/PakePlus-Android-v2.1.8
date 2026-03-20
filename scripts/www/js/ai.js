@@ -1,51 +1,81 @@
 function aiThink() {
     if (!GAME_STATE || !GAME_STATE.isPlaying) return;
-
     const me = GAME_STATE.currentPlayer;
-    const enemy = me === CONFIG.PLAYER_BLACK ? CONFIG.PLAYER_WHITE : CONFIG.PLAYER_BLACK;
+    const enemy = me === CONFIG.PLAYER.BLACK ? CONFIG.PLAYER.WHITE : CONFIG.PLAYER.BLACK;
     const size = CONFIG.BOARD_SIZE;
     const b = GAME_STATE.boardData;
 
-    const score = (x, y, p) => {
-        let s = 0;
+    const scoreChess = (x, y, p) => {
+        let total = 0;
         const dirs = [[1,0],[0,1],[1,1],[1,-1]];
         for (let [dx, dy] of dirs) {
-            let c = 1, bl = 0, ed = 0;
-            for (let i = 1; ; i++) {
-                let nx = x+dx*i, ny = y+dy*i;
-                if (nx<0||nx>=size||ny<0||ny>=size) break;
-                if (b[nx][ny] === p) c++;
-                else { bl = b[nx][ny] === 0 ? 1 : 0; break; }
+            let left = 0, right = 0;
+            let leftBlock = false, rightBlock = false;
+
+            for (let i=1; i<=4; i++) {
+                const nx = x - dx*i, ny = y - dy*i;
+                if (nx<0||nx>=size||ny<0||ny>=size) {leftBlock=true; break;}
+                if (b[nx][ny] === p) left++;
+                else if (b[nx][ny] !== 0) {leftBlock=true; break;}
+                else break;
             }
-            for (let i = 1; ; i++) {
-                let nx = x-dx*i, ny = y-dy*i;
-                if (nx<0||nx>=size||ny<0||ny>=size) break;
-                if (b[nx][ny] === p) c++;
-                else { ed = b[nx][ny] === 0 ? 1 : 0; break; }
+            for (let i=1; i<=4; i++) {
+                const nx = x + dx*i, ny = y + dy*i;
+                if (nx<0||nx>=size||ny<0||ny>=size) {rightBlock=true; break;}
+                if (b[nx][ny] === p) right++;
+                else if (b[nx][ny] !== 0) {rightBlock=true; break;}
+                else break;
             }
-            const open = bl + ed;
-            if (c >=5) s += 1000000;
-            else if (c ===4) s += open ===2 ? 100000 : open ===1 ? 50000 : 0;
-            else if (c ===3) s += open ===2 ? 10000 : open ===1 ? 5000 : 0;
-            else if (c ===2) s += open ===2 ? 1000 : open ===1 ? 500 : 0;
-            else if (c ===1) s += 10;
+            const sum = left + right;
+            const open = (leftBlock ? 0 : 1) + (rightBlock ? 0 : 1);
+
+            if (sum >=4) total += open===2 ? 1000000 : 500000;
+            else if (sum ===3) total += open===2 ? 100000 : 50000;
+            else if (sum ===2) total += open===2 ? 10000 : 5000;
+            else if (sum ===1) total += open===2 ? 1000 : 500;
         }
-        return s;
+        return total;
     };
 
-    let best = null, max = -1;
-    for (let x=0;x<size;x++){
-        for (let y=0;y<size;y++){
-            if (b[x][y]!==0) continue;
-            b[x][y] = me; const my = score(x,y,me); b[x][y]=0;
-            b[x][y] = enemy; const en = score(x,y,enemy); b[x][y]=0;
-            const total = my * 1.1 + en;
-            if (total > max) { max = total; best = {x,y}; }
+    const getValidPoints = () => {
+        const points = new Set();
+        for (let x=0; x<size; x++) {
+            for (let y=0; y<size; y++) {
+                if (b[x][y] !== 0) {
+                    for (let dx=-1; dx<=1; dx++) {
+                        for (let dy=-1; dy<=1; dy++) {
+                            const nx = x+dx, ny = y+dy;
+                            if (nx>=0&&nx<size&&ny>=0&&ny<size&&b[nx][ny]===0) {
+                                points.add(`${nx},${ny}`);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (points.size === 0) points.add(`${Math.floor(size/2)},${Math.floor(size/2)}`);
+        return Array.from(points).map(s => ({x:parseInt(s.split(',')[0]), y:parseInt(s.split(',')[1])}));
+    };
+
+    const validPoints = getValidPoints();
+    let best = null, maxScore = -Infinity;
+
+    for (let p of validPoints) {
+        const x = p.x, y = p.y;
+        b[x][y] = me;
+        const myScore = scoreChess(x, y, me);
+        b[x][y] = 0;
+        b[x][y] = enemy;
+        const enemyScore = scoreChess(x, y, enemy) * 1.2;
+        b[x][y] = 0;
+        const total = myScore + enemyScore;
+        if (total > maxScore) {
+            maxScore = total;
+            best = p;
         }
     }
 
     if (!best) return;
-
     setTimeout(()=>{
         if (GAME_STATE.isPlaying && Board.placeChess(best.x, best.y, me)) {
             if (GAME_STATE.currentMode === "skill") SkillSystem.addStep(me);
@@ -58,5 +88,5 @@ function aiThink() {
                 Game.tryAI();
             }
         }
-    }, 500);
+    }, 300);
 }
