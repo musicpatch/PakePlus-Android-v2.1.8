@@ -1,11 +1,470 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>PakePlus</title>
-    </head>
-    <body>
-        PakePlus
-    </body>
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+	<meta name="apple-mobile-web-app-capable" content="yes">
+	<meta name="apple-mobile-web-app-status-bar-style" content="default">
+	<meta name="full-screen" content="yes">
+	<meta name="browsermode" content="application">
+	<meta name="screen-orientation" content="portrait">
+	<title>推箱子</title>
+	<style>
+		*{
+			margin:0;
+			padding:0;
+			box-sizing:border-box;
+		}
+		html,body{
+			width:100%;
+			height:100%;
+			overflow:hidden;
+			background:#e2e2e2;
+			touch-action:none;
+		}
+		.game-title{
+			width:100%;
+			text-align:center;
+			padding:6px 0;
+			font-size:18px;
+			font-weight:bold;
+			color:#333;
+		}
+		.game{
+			position:relative;
+			width:100vw;
+			height:calc(100vh - 40px);
+			display:flex;
+			flex-direction:column;
+			align-items:center;
+			justify-content:center;
+		}
+		#canvas{
+			display:block;
+			background:#e2e2e2;
+		}
+		#msg{
+			color:#333;
+			padding:8px;
+			font-size:16px;
+			text-align:center;
+		}
+		.btns{
+			margin-top:6px;
+			display:flex;
+			gap:6px;
+		}
+		.btns input{
+			padding:8px 10px;
+			font-size:14px;
+		}
+		/* 悔步按钮样式：和现有按钮统一 */
+		.btns input.undo-btn{
+			background:#ff6767;
+			color:#fff;
+			border:none;
+		}
+		.btns input.undo-btn:disabled{
+			background:#ccc;
+			color:#999;
+			cursor:not-allowed;
+		}
+
+		.modal{
+			position:fixed;
+			top:0;
+			left:0;
+			width:100%;
+			height:100%;
+			background:rgba(0,0,0,0.4);
+			display:flex;
+			align-items:center;
+			justify-content:center;
+			opacity:0;
+			visibility:hidden;
+			transition:all 0.3s;
+		}
+		.modal.show{
+			opacity:1;
+			visibility:visible;
+		}
+		.modal-content{
+			background:#fff;
+			padding:30px 40px;
+			border-radius:10px;
+			text-align:center;
+		}
+		.modal-content h3{
+			margin-bottom:20px;
+			font-size:18px;
+			color:#222;
+		}
+		.modal-content button{
+			padding:8px 22px;
+			background:#6699ff;
+			color:#fff;
+			border:none;
+			border-radius:6px;
+			font-size:16px;
+		}
+	</style>
+</head>
+<body>
+
+	<div class="game-title">推箱子</div>
+
+	<div class="game">
+		<div id="msg"></div>
+		<canvas id="canvas"></canvas>
+		<div class="btns">
+			<input type="button" value="上一关" onClick="NextLevel(-1)">
+			<input type="button" value="重玩" onClick="NextLevel(0)">
+			<input type="button" value="下一关" onClick="NextLevel(1)">
+			<!-- 新增：悔一步按钮 -->
+			<input type="button" value="悔一步" class="undo-btn" onClick="undoStep()" disabled>
+			<input type="button" value="说明" onClick="showHelp()">
+		</div>
+	</div>
+
+	<div class="modal" id="successModal">
+		<div class="modal-content">
+			<h3>恭喜你过关！</h3>
+			<button onclick="closeModal()">确定</button>
+		</div>
+	</div>
+
+<script src="js/mapdata100.js"></script>
+<script>
+	var can = document.getElementById("canvas");
+	var msg = document.getElementById("msg");
+	var cxt = can.getContext("2d");
+	var successModal = document.getElementById("successModal");
+	// 新增：悔步相关变量
+	var stepHistory = []; // 存储步数记录（最多20步）
+	const MAX_HISTORY = 20; // 最大存储步数
+	var undoBtn = document.querySelector('.undo-btn'); // 悔步按钮
+
+	function resizeCanvas(){
+		var sw = document.body.clientWidth;
+		var sh = document.body.clientHeight;
+		var size = Math.min(sw, sh * 0.75);
+		can.width = size;
+		can.height = size;
+	}
+	window.addEventListener("resize",resizeCanvas);
+	resizeCanvas();
+
+	var gridCount = 16;
+	var w = can.width / gridCount;
+	var h = can.height / gridCount;
+
+	var curMap;
+	var curLevel;
+	var curMan;
+	var iCurlevel = 0;
+	var moveTimes = 0;
+
+	var oImgs = {
+		"block" : "images/block.gif",
+		"wall" : "images/wall.png",
+		"box" : "images/box.png",
+		"ball" : "images/ball.png",
+		"up" : "images/up.png",
+		"down" : "images/down.png",
+		"left" : "images/left.png",
+		"right" : "images/right.png",
+	}
+
+	var block,wall,box,ball,up,down,left,right;
+
+	imgPreload(oImgs,function(images){
+		block = images.block;
+		wall = images.wall;
+		box = images.box;
+		ball = images.ball;
+		up = images.up;
+		down = images.down;
+		left = images.left;
+		right = images.right;
+		init();
+	});
+
+	function imgPreload(srcs,callback){
+		var count=0,imgNum=0,images={};
+		for(var s in srcs)imgNum++;
+		for(var s in srcs){
+			images[s]=new Image();
+			images[s].onload=function(){
+				if(++count>=imgNum)callback(images);
+			}
+			images[s].src=srcs[s];
+		}
+	}
+
+	function init(){
+		initLevel();
+		showMoveInfo();
+		initTouch();
+	}
+
+	function InitMap(){
+		for(var i=0;i<16;i++){
+			for(var j=0;j<16;j++){
+				cxt.drawImage(block,j*w,i*w,w,w);
+			}
+		}
+	}
+
+	function Point(x,y){this.x=x;this.y=y;}
+	var perPosition = new Point(5,5);
+
+	function DrawMap(level){
+		w = can.width / 16;
+		for(var i=0;i<level.length;i++){
+			for(var j=0;j<level[i].length;j++){
+				var pic=block;
+				switch(level[i][j]){
+					case 1:pic=wall;break;
+					case 2:pic=ball;break;
+					case 3:pic=box;break;
+					case 4:
+						pic=curMan;
+						perPosition.x=i;
+						perPosition.y=j;
+						break;
+					case 5:pic=box;break;
+				}
+				cxt.drawImage(pic, j*w, i*w, w, w);
+			}
+		}
+	}
+
+	function initLevel(){
+		curMap=copyArray(levels[iCurlevel]);
+		curLevel=levels[iCurlevel];
+		curMan=down;
+		perPosition = new Point(5,5);
+		InitMap();
+		DrawMap(curMap);
+		// 新增：重置悔步记录
+		stepHistory = [];
+		updateUndoBtnStatus();
+	}
+
+	function NextLevel(i){
+		iCurlevel += i;
+		if(iCurlevel<0)iCurlevel=0;
+		if(iCurlevel>=levels.length)iCurlevel=levels.length-1;
+		moveTimes=0;
+		initLevel();
+		showMoveInfo();
+	}
+
+	// 新增：记录当前步骤（移动前调用）
+	function recordStep() {
+		// 深拷贝关键数据：curMap、perPosition、moveTimes、curMan
+		var stepData = {
+			curMap: copyArray(curMap),
+			perPosition: new Point(perPosition.x, perPosition.y),
+			moveTimes: moveTimes,
+			curMan: curMan
+		};
+		stepHistory.push(stepData);
+		// 超过20步，删除最旧的记录
+		if(stepHistory.length > MAX_HISTORY) {
+			stepHistory.shift();
+		}
+		// 更新按钮状态
+		updateUndoBtnStatus();
+	}
+
+	// 新增：执行悔步
+	function undoStep() {
+		if(stepHistory.length === 0) return;
+		
+		// 取出上一步的记录
+		var lastStep = stepHistory.pop();
+		// 恢复数据
+		curMap = lastStep.curMap;
+		perPosition = lastStep.perPosition;
+		moveTimes = lastStep.moveTimes;
+		curMan = lastStep.curMan;
+		
+		// 重新渲染棋盘
+		InitMap();
+		DrawMap(curMap);
+		// 更新步数显示
+		showMoveInfo();
+		// 更新按钮状态
+		updateUndoBtnStatus();
+	}
+
+	// 新增：更新悔步按钮状态
+	function updateUndoBtnStatus() {
+		undoBtn.disabled = stepHistory.length === 0;
+	}
+
+	function go(dir){
+		// 新增：移动前记录当前状态
+		recordStep();
+		
+		var p1,p2;
+		switch(dir){
+			case "up":curMan=up;p1=new Point(perPosition.x-1,perPosition.y);p2=new Point(perPosition.x-2,perPosition.y);break;
+			case "down":curMan=down;p1=new Point(perPosition.x+1,perPosition.y);p2=new Point(perPosition.x+2,perPosition.y);break;
+			case "left":curMan=left;p1=new Point(perPosition.x,perPosition.y-1);p2=new Point(perPosition.x,perPosition.y-2);break;
+			case "right":curMan=right;p1=new Point(perPosition.x,perPosition.y+1);p2=new Point(perPosition.x,perPosition.y+2);break;
+		}
+		if(Trygo(p1,p2)){
+			moveTimes++;
+			showMoveInfo();
+		}
+		InitMap();
+		DrawMap(curMap);
+
+		if(checkFinish()){
+			// 这里从 1000 改成 500 → 0.5秒
+			setTimeout(function(){
+				successModal.classList.add('show');
+			}, 500);
+		}
+	}
+
+	function checkFinish(){
+		for(var i=0;i<curMap.length;i++){
+			for(var j=0;j<curMap[i].length;j++){
+				if(curLevel[i][j]==2 && curMap[i][j]!=3 || curLevel[i][j]==5 && curMap[i][j]!=3){
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+
+	function Trygo(p1,p2){
+		if(p1.x<0||p1.y<0||p1.x>=16||p1.y>=16)return false;
+		if(curMap[p1.x][p1.y]==1)return false;
+		if(curMap[p1.x][p1.y]==3||curMap[p1.x][p1.y]==5){
+			if(p2.x<0||p2.y<0||p2.x>=16||p2.y>=16)return false;
+			if(curMap[p2.x][p2.y]==1||curMap[p2.x][p2.y]==3)return false;
+			curMap[p2.x][p2.y]=3;
+		}
+		curMap[p1.x][p1.y]=4;
+		var v=curLevel[perPosition.x][perPosition.y];
+		if(v!=2){
+			v=(v==5)?2:0;
+		}
+		curMap[perPosition.x][perPosition.y]=v;
+		perPosition=p1;
+		return true;
+	}
+
+	function findPath(start, end, map) {
+		var dirs = [[-1,0],[1,0],[0,-1],[0,1]];
+		var queue = [[start.x, start.y]];
+		var visited = Array(16).fill().map(()=>Array(16).fill(false));
+		var parent = Array(16).fill().map(()=>Array(16).fill(null));
+		visited[start.x][start.y] = true;
+
+		while(queue.length > 0) {
+			var [x,y] = queue.shift();
+			if(x === end.x && y === end.y) {
+				var path = [];
+				var cur = {x,y};
+				while(cur) {
+					path.unshift(cur);
+					cur = parent[cur.x][cur.y];
+				}
+				return path;
+			}
+			for(var [dx, dy] of dirs) {
+				var nx = x + dx;
+				var ny = y + dy;
+				if(nx >=0 && nx <16 && ny >=0 && ny <16 && !visited[nx][ny]) {
+					if(map[nx][ny] === 0 || map[nx][ny] === 2 || map[nx][ny] === 4 || map[nx][ny] === 5) {
+						visited[nx][ny] = true;
+						parent[nx][ny] = {x,y};
+						queue.push([nx, ny]);
+					}
+				}
+			}
+		}
+		return null;
+	}
+
+	function walkPath(path) {
+		if(!path || path.length < 2) return;
+		var i = 1;
+		function step() {
+			if(i >= path.length) return;
+			var cur = path[i-1];
+			var next = path[i];
+			var dir;
+			if(next.x < cur.x) dir = "up";
+			else if(next.x > cur.x) dir = "down";
+			else if(next.y < cur.y) dir = "left";
+			else if(next.y > cur.y) dir = "right";
+			go(dir);
+			i++;
+			setTimeout(step, 150);
+		}
+		step();
+	}
+
+	function initTouch(){
+		can.addEventListener("click", function(e){
+			var rect = can.getBoundingClientRect();
+			var x = e.clientX - rect.left;
+			var y = e.clientY - rect.top;
+			var gridX = Math.floor(y / w);
+			var gridY = Math.floor(x / w);
+			var target = new Point(gridX, gridY);
+
+			if(target.x === perPosition.x && target.y === perPosition.y) return;
+
+			if(curMap[target.x][target.y] === 1 || curMap[target.x][target.y] === 3 || curMap[target.x][target.y] === 5) {
+				var dx = target.x - perPosition.x;
+				var dy = target.y - perPosition.y;
+				if((Math.abs(dx) === 1 && dy === 0) || (dx === 0 && Math.abs(dy) === 1)) {
+					var dir;
+					if(dx === -1) dir = "up";
+					else if(dx === 1) dir = "down";
+					else if(dy === -1) dir = "left";
+					else if(dy === 1) dir = "right";
+					go(dir);
+				}
+				return;
+			}
+
+			var path = findPath(perPosition, target, curMap);
+			walkPath(path);
+		});
+	}
+
+	function showMoveInfo(){
+		msg.innerHTML="第"+(iCurlevel+1)+"关 步数："+moveTimes;
+	}
+
+	var showhelp=false;
+	function showHelp(){
+		showhelp=!showhelp;
+		if(showhelp){
+			msg.innerHTML="点击空地自动寻路，点击相邻箱子可推动。";
+		}else{
+			showMoveInfo();
+		}
+	}
+
+	function copyArray(arr){
+		var b=[];
+		for(var i=0;i<arr.length;i++)b[i]=arr[i].concat();
+		return b;
+	}
+
+	function closeModal(){
+		successModal.classList.remove('show');
+		NextLevel(1);
+	}
+</script>
+</body>
 </html>
