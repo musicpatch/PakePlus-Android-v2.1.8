@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Family Guy 恶搞之家 小游戏合集</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "微软雅黑", sans-serif;
+        }
+
+        /* 🔥 强制全屏样式 */
+        html, body {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            position: fixed;
+            left:0; top:0; right:0; bottom:0;
+        }
+
+        .game-index {
+            width: 100vw;
+            height: calc(100vw * 16 / 9);
+            max-width: 450px;
+            max-height: 800px;
+            margin: 0 auto;
+            background-color: #f8f8f8;
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .bg-characters {
+            position: absolute;
+            bottom: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 70%;
+            height: auto;
+            padding-top: 133.33%;
+            background: url("images/bg.png") no-repeat center bottom;
+            background-size: contain;
+            opacity: 0.4;
+            z-index: 1;
+        }
+
+        .bg-logo {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 70%;
+            height: auto;
+            padding-top: 61%;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center center;
+            z-index: 2;
+            cursor: pointer;
+        }
+
+        .game-list {
+            position: absolute;
+            top: 250px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 85%;
+            height: calc(100% - 310px);
+            overflow-y: auto;
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+            z-index: 3;
+        }
+        .game-list::-webkit-scrollbar { display: none; }
+
+        .game-item {
+            display: flex;
+            align-items: center;
+            background-color: rgba(255, 255, 255, 0.5);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .game-item:active {
+            transform: scale(0.98);
+            background-color: rgba(255, 255, 255, 0.7);
+        }
+
+        .game-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 8px;
+            background-size: cover;
+            background-position: center;
+            margin-right: 15px;
+        }
+
+        .game-info { flex: 1; }
+        .game-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+        }
+        .game-desc {
+            font-size: 12px;
+            color: #555;
+        }
+
+        .index-footer {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            font-size: 12px;
+            color: #777;
+            z-index: 3;
+        }
+
+        .custom-alert {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            padding: 20px 30px;
+            border-radius: 10px;
+            font-size: 12px;
+            z-index: 9999;
+            text-align: center;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-index">
+        <div class="bg-characters"></div>
+        <div class="bg-logo" id="randomLogo"></div>
+
+        <div class="game-list" id="gameList"></div>
+
+        <div class="index-footer">© Family Guy 恶搞之家 小游戏合集</div>
+    </div>
+
+    <audio id="bgMusic" src="mp3/gigisong.mp3" loop>
+    <div class="custom-alert" id="customAlert"></div>
+
+    <script>
+        // 角色头像
+        const charIcons = [
+            "images/Stewie.png",
+            "images/Quagmire.png",
+            "images/Peter.png",
+            "images/Mort.png",
+            "images/Meg.png",
+            "images/Lois.png",
+            "images/Joe.png",
+            "images/Jillian.png",
+            "images/Herbert.png",
+            "images/MortGoldman.png",
+            "images/EvilMonkey.png",
+            "images/Cleveland.png",
+            "images/Chris.png",
+            "images/Carter.png",
+            "images/Brian.png",
+            "images/Bonnie.png"
+        ];
+
+        // 最新修正游戏列表（按 A-Z 排序）
+        const gameList = [
+            { name: "2048", path: "2048.html", desc: "合成Family Guy角色，解锁恶搞名场面" },
+            { name: "吃豆人", path: "22/index.html", desc: "经典吃豆玩法，躲避追击吃满豆子" },
+            { name: "吃苍蝇", path: "6/chicangying.html", desc: "趣味魔性玩法，吃掉更多苍蝇" },
+            { name: "打砖块", path: "brick.html", desc: "弹球击碎砖块，清空全场" },
+            { name: "俄罗斯方块", path: "4/index.html", desc: "经典方块下落，填满整行轻松消除" },
+            { name: "画线接球", path: "drawball.html", desc: "画出神奇路线，引导小球顺利进洞" },
+            { name: "黑白棋", path: "reversi.html", desc: "翻转棋子占领棋盘，脑力策略大对决" },
+            { name: "华容道", path: "1/huarongdao2.html", desc: "滑动角色逃出迷宫，传统益智挑战" },
+            { name: "汉诺塔", path: "hnt.html", desc: "圆盘层层挪移，考验逻辑思维" },
+            { name: "记忆方块", path: "memory.html", desc: "记住角色位置，翻开全部配对成功" },
+            { name: "井字棋", path: "tic.html", desc: "三子连成一线，轻松休闲随时玩" },
+            { name: "连连看", path: "lianliankan.html", desc: "快速匹配相同角色，眼力与手速大考验" },
+            { name: "魔方", path: "5/mufang.html", desc: "旋转还原魔方，挑战空间想象力" },
+            { name: "像素小鸟", path: "flappybird.html", desc: "操控小鸟穿越管道，挑战极限高分" },
+            { name: "扫雷", path: "saolei.html", desc: "避开所有地雷，清空格子安全通关" },
+            { name: "数字华容道", path: "huarongdao.html", desc: "滑动数字归位，还原完整顺序" },
+            { name: "速算24点", path: "24.html", desc: "四个数字巧组合，算出24点即获胜" },
+            { name: "坦克大战", path: "52/index.html", desc: "驾驶坦克激战，摧毁敌方基地" },
+            { name: "推箱子", path: "0/txz.html", desc: "推动箱子到指定位置，益智闯关" },
+            { name: "消消乐", path: "80/index.html", desc: "交换消除，解压好玩停不下来" },
+            { name: "切方块", path: "8/qqq.html", desc: "疯狂切割方块，释放所有压力" },
+            { name: "一个都不能死", path: "2/ygdbns.html", desc: "全员同步跑酷，一个都不能掉队" },
+            { name: "五子棋", path: "gomoku.html", desc: "连成五子即可获胜，经典对弈" },
+            { name: "贪吃蛇", path: "snake.html", desc: "操控角色吃金币，越长越厉害" },
+            { name: "找不同", path: "3/zhaobutong.html", desc: "擦亮双眼，找出两张图的细微差别" }
+        ];
+
+        // 随机头像
+        function getRandIcon() {
+            return charIcons[Math.floor(Math.random() * charIcons.length)];
+        }
+
+        // 渲染列表
+        const listEl = document.getElementById("gameList");
+        gameList.forEach(game => {
+            const item = document.createElement("div");
+            item.className = "game-item";
+            item.onclick = () => startGame(game.name);
+            item.innerHTML = `
+                <div class="game-icon" style="background-image: url('${getRandIcon()}')"></div>
+                <div class="game-info">
+                    <div class="game-name">${game.name}</div>
+                    <div class="game-desc">${game.desc}</div>
+                </div>
+            `;
+            listEl.appendChild(item);
+        });
+
+        // 随机LOGO
+        const logos = ["images/logo.png", "images/logo1.png", "images/logo2.png"];
+        document.getElementById("randomLogo").style.backgroundImage = `url(${logos[Math.floor(Math.random()*logos.length)]})`;
+
+        // 音乐
+        const bgMusic = document.getElementById("bgMusic");
+        document.getElementById("randomLogo").onclick = () => {
+            if (bgMusic.paused) {
+                bgMusic.play();
+            } else {
+                bgMusic.pause();
+            }
+        };
+
+        // 跳转
+        function startGame(gameName) {
+            const gameMap = {};
+            gameList.forEach(g => gameMap[g.name] = g.path);
+            showAlert(`即将开始：${gameName}`);
+            setTimeout(() => { window.location.href = gameMap[gameName]; }, 1000);
+        }
+
+        // 提示
+        function showAlert(text) {
+            const alertEl = document.getElementById("customAlert");
+            alertEl.innerText = text;
+            alertEl.style.display = "block";
+            setTimeout(() => alertEl.style.display = "none", 1000);
+        }
+    </script>
+
+    <script>
+    window.addEventListener('pageshow', function() {
+        document.body.style.pointerEvents = 'auto';
+        let maxTimer = setTimeout(function(){});
+        for(let i=0; i<maxTimer; i++) { clearTimeout(i); clearInterval(i); }
+        let maxReq = requestAnimationFrame(function(){});
+        for(let i=0; i<maxReq; i++) cancelAnimationFrame(i);
+    });
+    </script>
+
+    <!-- 🔥 强制全屏 + 防侧滑退出（只加在这里，全局生效） -->
+    <script>
+        // 自动全屏
+        function goFull() {
+            let el = document.documentElement;
+            if (el.requestFullscreen) el.requestFullscreen();
+            else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+        }
+
+        // 页面加载自动全屏
+        window.onload = function(){
+            setTimeout(goFull, 150);
+        };
+
+        // 🔥 拦截侧滑退出（英雄杀同款效果）
+        document.addEventListener('touchstart', function(e){
+            let x = e.touches[0].clientX;
+            let w = window.innerWidth;
+            if(x < w*0.05 || x > w*0.95){
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        }, { passive:false });
+
+        document.addEventListener('touchmove', function(e){
+            let x = e.touches[0].clientX;
+            let w = window.innerWidth;
+            if(x < w*0.05 || x > w*0.95){
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        }, { passive:false });
+    </script>
+
+</body>
+</html>
