@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>9×9迷宫地图编辑器</title>
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Microsoft YaHei", sans-serif;
+}
+html,body {
+  width: 100%;
+  height: 100%;
+  background: #000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 0;
+  gap: 12px;
+  overflow-x: hidden;
+}
+.wrap {
+  width: 100%;
+  max-width: 450px;
+  background: linear-gradient(180deg, #1a2a6c, #3a1a4f);
+  border-radius: 16px;
+  padding: 10px;
+}
+#mazeCanvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  cursor: crosshair;
+  touch-action: none;
+}
+.controls {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.btn {
+  padding: 10px 12px;
+  border: none;
+  border-radius: 8px;
+  background: #fff;
+  color: #1a2a6c;
+  font-weight: bold;
+  cursor: pointer;
+  font-size: 14px;
+}
+.btn.active {
+  background: #ff9a00;
+  color: #fff;
+}
+.code-area {
+  width: 100%;
+  max-width: 450px;
+  background: #111;
+  border-radius: 8px;
+  padding: 15px;
+  color: #0f0;
+  font-family: monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 300px;
+  overflow-y: auto;
+}
+.copy-btn {
+  padding: 8px 16px;
+  background: #0f0;
+  color: #000;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <canvas id="mazeCanvas" width="450" height="450"></canvas>
+  <div class="controls">
+    <button class="btn active" id="eraseBtn">擦除模式</button>
+    <button class="btn" id="restoreBtn">恢复模式</button>
+    <button class="btn" id="undoBtn">撤销上一步</button>
+    <button class="btn" id="resetBtn">重置网格</button>
+    <button class="btn" id="saveBtn">确定保存</button>
+  </div>
+</div>
+
+<div class="code-area" id="codeArea"></div>
+<button class="copy-btn" id="copyBtn" style="display: none;">复制代码</button>
+
+<script>
+const canvas = document.getElementById('mazeCanvas');
+const ctx = canvas.getContext('2d');
+const SIZE = 50;
+const N = 9;
+ctx.strokeStyle = '#fff';
+ctx.lineWidth = 2;
+
+let hLines = Array(N+1).fill().map(() => Array(N).fill(true));
+let vLines = Array(N).fill().map(() => Array(N+1).fill(true));
+
+let history = [];
+let mode = 'erase';
+
+const entrance = {x: 4, y: 0};
+const exit = {x: 4, y: N};
+
+let processed = new Set();
+
+function saveHistory() {
+  history.push({
+    h: JSON.parse(JSON.stringify(hLines)),
+    v: JSON.parse(JSON.stringify(vLines))
+  });
+  if (history.length > 20) history.shift();
+}
+
+function undo() {
+  if (history.length === 0) return;
+  let last = history.pop();
+  hLines = last.h;
+  vLines = last.v;
+  redraw();
+}
+
+function init() {
+  saveHistory();
+  redraw();
+}
+
+function redraw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  
+  for (let y = 0; y <= N; y++) {
+    for (let x = 0; x < N; x++) {
+      if (hLines[y][x]) {
+        ctx.beginPath();
+        ctx.moveTo(x * SIZE, y * SIZE);
+        ctx.lineTo((x+1) * SIZE, y * SIZE);
+        ctx.stroke();
+      }
+    }
+  }
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x <= N; x++) {
+      if (vLines[y][x]) {
+        ctx.beginPath();
+        ctx.moveTo(x * SIZE, y * SIZE);
+        ctx.lineTo(x * SIZE, (y+1) * SIZE);
+        ctx.stroke();
+      }
+    }
+  }
+
+  ctx.beginPath();
+  ctx.moveTo(entrance.x * SIZE, 0);
+  ctx.lineTo((entrance.x+1) * SIZE, 0);
+  ctx.strokeStyle = '#1a2a6c';
+  ctx.stroke();
+  ctx.strokeStyle = '#fff';
+
+  ctx.beginPath();
+  ctx.moveTo(exit.x * SIZE, N * SIZE);
+  ctx.lineTo((exit.x+1) * SIZE, N * SIZE);
+  ctx.strokeStyle = '#1a2a6c';
+  ctx.stroke();
+  ctx.strokeStyle = '#fff';
+
+  hLines[0][entrance.x] = false;
+  hLines[N][exit.x] = false;
+}
+
+function handleMove(x, y) {
+  const rect = canvas.getBoundingClientRect();
+  const scale = canvas.width / rect.width;
+
+  const realX = x * scale;
+  const realY = y * scale;
+
+  const gx = Math.floor(realX / SIZE);
+  const gy = Math.floor(realY / SIZE);
+  const ox = realX % SIZE;
+  const oy = realY % SIZE;
+
+  const tol = 14;
+
+  if (oy < tol && gy >= 0 && gy <= N && gx >= 0 && gx < N) {
+    const key = `h${gy},${gx}`;
+    if (processed.has(key)) return;
+    processed.add(key);
+    saveHistory();
+    hLines[gy][gx] = mode === 'erase' ? false : true;
+    redraw();
+  }
+
+  if (ox < tol && gx >= 0 && gx <= N && gy >= 0 && gy < N) {
+    const key = `v${gy},${gx}`;
+    if (processed.has(key)) return;
+    processed.add(key);
+    saveHistory();
+    vLines[gy][gx] = mode === 'erase' ? false : true;
+    redraw();
+  }
+}
+
+let isDown = false;
+
+canvas.addEventListener('mousedown', () => { isDown = true; processed.clear(); });
+canvas.addEventListener('mouseup', () => { isDown = false; });
+canvas.addEventListener('mouseleave', () => { isDown = false; });
+canvas.addEventListener('mousemove', (e) => {
+  if (!isDown) return;
+  const r = canvas.getBoundingClientRect();
+  handleMove(e.clientX - r.left, e.clientY - r.top);
+});
+
+canvas.addEventListener('touchstart', (e) => {
+  isDown = true;
+  processed.clear();
+  e.preventDefault();
+});
+canvas.addEventListener('touchend', () => { isDown = false; });
+canvas.addEventListener('touchmove', (e) => {
+  if (!isDown) return;
+  const r = canvas.getBoundingClientRect();
+  const t = e.touches[0];
+  handleMove(t.clientX - r.left, t.clientY - r.top);
+  e.preventDefault();
+});
+
+document.getElementById('eraseBtn').addEventListener('click', () => {
+  mode = 'erase';
+  eraseBtn.classList.add('active');
+  restoreBtn.classList.remove('active');
+});
+document.getElementById('restoreBtn').addEventListener('click', () => {
+  mode = 'restore';
+  restoreBtn.classList.add('active');
+  eraseBtn.classList.remove('active');
+});
+document.getElementById('undoBtn').addEventListener('click', undo);
+
+document.getElementById('resetBtn').addEventListener('click', () => {
+  hLines = Array(N+1).fill().map(() => Array(N).fill(true));
+  vLines = Array(N).fill().map(() => Array(N+1).fill(true));
+  history = [];
+  init();
+  codeArea.textContent = '';
+  copyBtn.style.display = 'none';
+});
+
+document.getElementById('saveBtn').addEventListener('click', () => {
+  let code = 'const walls = [\n';
+  code += '  [[0,0],[9,0]], [[0,9],[9,9]], [[0,0],[0,9]], [[9,0],[9,9]],\n\n';
+  
+  for (let y = 0; y <= N; y++) {
+    for (let x = 0; x < N; x++) {
+      if (hLines[y][x] && !(y === 0 && x === 4) && !(y === 9 && x === 4)) {
+        code += `  [[${x},${y}],[${x+1},${y}]],\n`;
+      }
+    }
+  }
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x <= N; x++) {
+      if (vLines[y][x]) {
+        code += `  [[${x},${y}],[${x},${y+1}]],\n`;
+      }
+    }
+  }
+  code += '];';
+  codeArea.textContent = code;
+  copyBtn.style.display = 'block';
+});
+
+copyBtn.addEventListener('click', () => {
+  navigator.clipboard.writeText(codeArea.textContent).then(()=>alert('已复制'));
+});
+
+init();
+</script>
+</body>
+</html>
