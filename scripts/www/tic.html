@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>井字棋 - 恶搞之家</title>
+<style>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: "微软雅黑", sans-serif;
+}
+body {
+    background: #f8f8f8;
+    display: flex;
+    justify-content: center;
+    padding: 10px;
+}
+.game {
+    width: 100%;
+    max-width: 400px;
+    background: #fff;
+    border-radius: 14px;
+    padding: 25px 20px;
+    text-align: center;
+}
+.title {
+    font-size: 24px;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 10px;
+}
+
+.ai-toggle {
+    margin-bottom: 16px;
+}
+.ai-toggle button {
+    padding: 8px 14px;
+    border: none;
+    border-radius: 8px;
+    margin: 0 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+.btn-pvp {
+    background: #e3f2fd;
+    color: #333;
+}
+.btn-pvp.active {
+    background: #1976d2;
+    color: #fff;
+}
+.btn-ai {
+    background: #fce4ec;
+    color: #333;
+}
+.btn-ai.active {
+    background: #d81b60;
+    color: #fff;
+}
+
+.status {
+    font-size: 16px;
+    margin-bottom: 20px;
+    height: 20px;
+}
+.board {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    width: 270px;
+    margin: 0 auto 25px;
+}
+.cell {
+    aspect-ratio: 1/1;
+    background: #f1f1f1;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 40px;
+    font-weight: bold;
+    cursor: pointer;
+}
+.cell.x { color: #d32f2f; }
+.cell.o { color: #1976d2; }
+
+.btns button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 10px;
+    margin: 0 6px;
+    cursor: pointer;
+}
+.btn-restart {
+    background: #ff9eaa;
+    color: #fff;
+}
+.btn-back {
+    background: #eee;
+    color: #333;
+}
+</style>
+</head>
+
+<body>
+<div class="game">
+    <div class="title">井字棋</div>
+
+    <div class="ai-toggle">
+        <button class="btn-pvp active" id="pvp">人人对战</button>
+        <button class="btn-ai" id="ai">人机对战</button>
+    </div>
+
+    <div class="status" id="status">X 回合</div>
+
+    <div class="board">
+        <div class="cell" onclick="play(0)"></div>
+        <div class="cell" onclick="play(1)"></div>
+        <div class="cell" onclick="play(2)"></div>
+        <div class="cell" onclick="play(3)"></div>
+        <div class="cell" onclick="play(4)"></div>
+        <div class="cell" onclick="play(5)"></div>
+        <div class="cell" onclick="play(6)"></div>
+        <div class="cell" onclick="play(7)"></div>
+        <div class="cell" onclick="play(8)"></div>
+    </div>
+
+    <div class="btns">
+        <button class="btn-restart" onclick="restart()">重新开始</button>
+        <button class="btn-back" onclick="location.href='index.html'">返回列表</button>
+    </div>
+</div>
+
+<script>
+let board = ["","","","","","","","",""];
+let current = "X";
+let gameOver = false;
+let aiEnabled = false;
+
+const win = [
+    [0,1,2],[3,4,5],[6,7,8],
+    [0,3,6],[1,4,7],[2,5,8],
+    [0,4,8],[2,4,6]
+];
+
+// 切换规则：
+// 棋盘为空时，可以随便切
+// 棋盘有子了，就不让切
+document.getElementById('pvp').addEventListener('click', () => {
+    if (!isBoardEmpty()) return;
+    aiEnabled = false;
+    refreshBtn();
+});
+
+document.getElementById('ai').addEventListener('click', () => {
+    if (!isBoardEmpty()) return;
+    aiEnabled = true;
+    refreshBtn();
+});
+
+function refreshBtn() {
+    document.getElementById('pvp').classList.toggle('active', !aiEnabled);
+    document.getElementById('ai').classList.toggle('active', aiEnabled);
+}
+
+// 判断棋盘是不是空的
+function isBoardEmpty() {
+    return board.every(v => v === "");
+}
+
+function play(pos) {
+    if (gameOver || board[pos] !== "") return;
+
+    board[pos] = current;
+    render();
+
+    if (checkWin(current)) {
+        document.getElementById("status").innerText = current + " 赢了！";
+        gameOver = true;
+        return;
+    }
+
+    if (!board.includes("")) {
+        document.getElementById("status").innerText = "平局！";
+        gameOver = true;
+        return;
+    }
+
+    current = current === "X" ? "O" : "X";
+    document.getElementById("status").innerText = current + " 回合";
+
+    if (aiEnabled && current === "O" && !gameOver) {
+        setTimeout(aiPlay, 600);
+    }
+}
+
+// AI 完整策略
+function aiPlay() {
+    // 1. 能赢就赢
+    for (let line of win) {
+        let [a,b,c] = line;
+        let o = 0, e = -1;
+        if (board[a]==="O") o++; else if (board[a]==="") e=a;
+        if (board[b]==="O") o++; else if (board[b]==="") e=b;
+        if (board[c]==="O") o++; else if (board[c]==="") e=c;
+        if (o === 2 && e !== -1) { play(e); return; }
+    }
+
+    // 2. 堵玩家
+    for (let line of win) {
+        let [a,b,c] = line;
+        let x = 0, e = -1;
+        if (board[a]==="X") x++; else if (board[a]==="") e=a;
+        if (board[b]==="X") x++; else if (board[b]==="") e=b;
+        if (board[c]==="X") x++; else if (board[c]==="") e=c;
+        if (x === 2 && e !== -1) { play(e); return; }
+    }
+
+    // 3. 中间
+    if (board[4] === "") { play(4); return; }
+
+    // 4. 角
+    const corners = [0,2,6,8];
+    for (let i of corners) {
+        if (board[i] === "") { play(i); return; }
+    }
+
+    // 5. 边
+    const edges = [1,3,5,7];
+    for (let i of edges) {
+        if (board[i] === "") { play(i); return; }
+    }
+}
+
+function checkWin(p) {
+    return win.some(line => 
+        board[line[0]]===p && board[line[1]]===p && board[line[2]]===p
+    );
+}
+
+function render() {
+    let cells = document.querySelectorAll(".cell");
+    cells.forEach((el,i) => {
+        el.innerText = board[i];
+        el.className = "cell " + board[i].toLowerCase();
+    });
+}
+
+function restart() {
+    board = ["","","","","","","","",""];
+    current = "X";
+    gameOver = false;
+    document.getElementById("status").innerText = "X 回合";
+    render();
+}
+window.addEventListener('pagehide', function() {
+  document.removeEventListener('keydown', window.keyListener);
+});
+
+</script>
+</body>
+</html>
