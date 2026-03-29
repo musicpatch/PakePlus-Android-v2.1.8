@@ -1,11 +1,258 @@
 <!DOCTYPE html>
-<html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>PakePlus</title>
-    </head>
-    <body>
-        PakePlus
-    </body>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>恶搞之家 小游戏合集</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "微软雅黑", sans-serif;
+        }
+
+        .game-index {
+            width: 100vw;
+            height: calc(100vw * 16 / 9);
+            max-width: 450px;
+            max-height: 800px;
+            margin: 0 auto;
+            background-color: #f8f8f8;
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .bg-characters {
+            position: absolute;
+            bottom: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 70%;
+            height: auto;
+            padding-top: 133.33%;
+            background: url("images/bg.png") no-repeat center bottom;
+            background-size: contain;
+            opacity: 0.4;
+            z-index: 1;
+        }
+
+        .bg-logo {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 70%;
+            height: auto;
+            padding-top: 61%;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center center;
+            z-index: 2;
+            cursor: pointer;
+        }
+
+        .game-list {
+            position: absolute;
+            top: 250px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 85%;
+            height: calc(100% - 310px);
+            overflow-y: auto;
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+            z-index: 3;
+        }
+        .game-list::-webkit-scrollbar { display: none; }
+
+        .game-item {
+            display: flex;
+            align-items: center;
+            background-color: rgba(255, 255, 255, 0.5);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .game-item:active {
+            transform: scale(0.98);
+            background-color: rgba(255, 255, 255, 0.7);
+        }
+
+        .game-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 8px;
+            background-size: cover;
+            background-position: center;
+            margin-right: 15px;
+        }
+
+        .game-info { flex: 1; }
+        .game-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+        }
+        .game-desc {
+            font-size: 12px;
+            color: #555;
+        }
+
+        .index-footer {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            font-size: 12px;
+            color: #777;
+            z-index: 3;
+        }
+
+        .custom-alert {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            padding: 20px 30px;
+            border-radius: 10px;
+            font-size: 12px;
+            z-index: 9999;
+            text-align: center;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-index">
+        <div class="bg-characters"></div>
+        <div class="bg-logo" id="randomLogo"></div>
+
+        <div class="game-list" id="gameList"></div>
+
+        <div class="index-footer">© 恶搞之家小游戏合集</div>
+    </div>
+
+    <audio id="bgMusic" src="mp3/gigisong.mp3" loop></audio>
+    <div class="custom-alert" id="customAlert"></div>
+
+    <script>
+        // 随机角色图片
+        const charIcons = [
+            "images/Stewie.png",
+            "images/Quagmire.png",
+            "images/Peter.png",
+            "images/Mort.png",
+            "images/Meg.png",
+            "images/Lois.png",
+            "images/Joe.png",
+            "images/Jillian.png",
+            "images/Herbert.png",
+            "images/MortGoldman.png",
+            "images/EvilMonkey.png",
+            "images/Cleveland.png",
+            "images/Chris.png",
+            "images/Carter.png",
+            "images/Brian.png",
+            "images/Bonnie.png"
+        ];
+
+        // ====================== 你最新的游戏列表（已按拼音排序）======================
+        const gameList = [
+            { name: "2048", path: "2048.html" },
+            { name: "俄罗斯方块", path: "24/tetris.html" },
+            { name: "黑白棋", path: "reversi.html" },
+            { name: "华容道", path: "huarongdao2/huarongdao2.html" },
+            { name: "汉诺塔", path: "hnt.html" },
+            { name: "画线接球", path: "drawball.html" },
+            { name: "井字棋", path: "tic.html" },
+            { name: "连连看", path: "lianliankan.html" },
+            { name: "记忆方块", path: "memory.html" },
+            { name: "像素小鸟", path: "flappybird.html" },
+            { name: "像素飞机", path: "66/index.html" },
+            { name: "扫雷", path: "saolei.html" },
+            { name: "扫雷2", path: "44/index.html" },
+            { name: "数字华容道", path: "huarongdao.html" },
+            { name: "速算24点", path: "24.html" },
+            { name: "贪吃蛇", path: "snake.html" },
+            { name: "熊出没", path: "56/index.html" },
+            { name: "消消乐", path: "xiaoxiaole.html" },
+            { name: "找不同", path: "43/zhaobutong.html" },
+            { name: "切切切", path: "68/qqq.html" },
+            { name: "一个都不能", path: "2/ygdbns.html" },
+            { name: "五子棋", path: "gomoku.html" },
+            { name: "打砖块", path: "brick.html" },
+            { name: "魔方", path: "5/mofang.html" },
+            { name: "吃苍蝇", path: "6/chicangying.html" }
+        ];
+
+        // 随机图片
+        function getRandIcon() {
+            return charIcons[Math.floor(Math.random() * charIcons.length)];
+        }
+
+        // 渲染游戏列表
+        const listEl = document.getElementById("gameList");
+        gameList.forEach(game => {
+            const item = document.createElement("div");
+            item.className = "game-item";
+            item.onclick = () => startGame(game.name);
+            item.innerHTML = `
+                <div class="game-icon" style="background-image: url('${getRandIcon()}')"></div>
+                <div class="game-info">
+                    <div class="game-name">${game.name}</div>
+                    <div class="game-desc">恶搞之家趣味小游戏</div>
+                </div>
+            `;
+            listEl.appendChild(item);
+        });
+
+        // 随机LOGO
+        const logos = ["images/logo.png", "images/logo1.png", "images/logo2.png"];
+        document.getElementById("randomLogo").style.backgroundImage = `url(${logos[Math.floor(Math.random()*logos.length)]})`;
+
+        // 背景音乐
+        const bgMusic = document.getElementById("bgMusic");
+        document.addEventListener("DOMContentLoaded", () => {
+            bgMusic.play().catch(() => {});
+        });
+        document.getElementById("randomLogo").onclick = () => {
+            bgMusic.paused ? bgMusic.play() : bgMusic.pause();
+        };
+
+        // 游戏跳转
+        function startGame(gameName) {
+            const gameMap = {};
+            gameList.forEach(g => gameMap[g.name] = g.path);
+            showAlert(`即将开始：${gameName}`);
+            setTimeout(() => { window.location.href = gameMap[gameName]; }, 1000);
+        }
+
+        // 提示框
+        function showAlert(text) {
+            const alertEl = document.getElementById("customAlert");
+            alertEl.innerText = text;
+            alertEl.style.display = "block";
+            setTimeout(() => alertEl.style.display = "none", 1000);
+        }
+    </script>
+
+    <script>
+    window.addEventListener('pageshow', function() {
+        document.body.style.pointerEvents = 'auto';
+        let maxTimer = setTimeout(function(){});
+        for(let i=0; i<maxTimer; i++) { clearTimeout(i); clearInterval(i); }
+        let maxReq = requestAnimationFrame(function(){});
+        for(let i=0; i<maxReq; i++) cancelAnimationFrame(i);
+    });
+    </script>
+</body>
 </html>
