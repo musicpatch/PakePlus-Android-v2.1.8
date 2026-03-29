@@ -1,0 +1,18 @@
+第一批（10 个）
+Stewie → images/Stewie.png
+Quagmire → images/Quagmire.png
+Peter → images/Peter.png
+Mort → images/Mort.png
+Meg → images/Meg.png
+Lois → images/Lois.png
+Joe → images/Joe.png
+Jillian → images/Jillian.png
+Herbert → images/Herbert.png
+Mort Goldman → images/MortGoldman.png
+Evil Monkey → images/EvilMonkey.png
+Cleveland → images/Cleveland.png
+Chris → images/Chris.png
+Carter → images/Carter.png
+Brian → images/Brian.png
+Bonnie → images/Bonnie.png
+
