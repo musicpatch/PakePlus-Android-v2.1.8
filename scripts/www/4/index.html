@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>经典俄罗斯方块</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- 开始/重置覆盖层 -->
+    <div class="overlay" id="start-overlay">
+        <h1 class="game-title">俄罗斯方块</h1>
+        <button class="start-btn" id="start-btn">开始游戏</button>
+    </div>
+
+    <div class="game-container">
+        <!-- 顶部信息栏 + 重置按钮 -->
+        <div class="top-bar">
+            <div class="stats">
+                <div class="stat">
+                    <span class="stat-label">分数</span>
+                    <span class="stat-value" id="score">0</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">最高分</span>
+                    <span class="stat-value" id="high-score">0</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">行数</span>
+                    <span class="stat-value" id="lines">0</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">等级</span>
+                    <span class="stat-value" id="level">1</span>
+                </div>
+            </div>
+            <div class="next-area">
+                <div class="next-label">下一块</div>
+                <canvas id="preview-canvas" width="96" height="96"></canvas>
+            </div>
+            <button class="reset-btn" id="reset-btn">⟳</button>
+        </div>
+
+        <!-- 游戏板区域（点击暂停/继续） -->
+        <div class="board-area">
+            <canvas id="tetris-board"></canvas>
+        </div>
+
+        <!-- 底部触控按钮 -->
+        <div class="control-bar">
+            <button class="ctrl-btn" id="left-btn">◀</button>
+            <button class="ctrl-btn" id="rotate-btn">↻</button>
+            <button class="ctrl-btn" id="right-btn">▶</button>
+            <button class="ctrl-btn hard-drop" id="hard-drop-btn">⬇ 硬降</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
