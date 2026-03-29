@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>恶搞之家贪吃蛇</title>
+<style>
+body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #e5e5e5;
+  font-family: sans-serif;
+  margin: 0;
+  padding: 10px;
+  transition: all 0.3s;
+  color:#000;
+}
+
+.bottom-bg {
+  position: fixed;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  width: 66.6%;
+  opacity: 0.85;
+  z-index: -1;
+  pointer-events: none;
+}
+.bottom-bg img {
+  width: 100%;
+  display: block;
+}
+
+#canvas {
+  border: 2px solid #666;
+  background: #fff;
+  transition: all 0.3s;
+}
+#score {
+  font-size: 20px;
+  margin: 10px 0;
+}
+.panel {
+  margin-top: 8px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+button {
+  padding: 8px 10px;
+  font-size: 14px;
+}
+
+#gameOverPanel {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.4);
+  display: none;
+  justify-content: center;
+  align-items: center;
+}
+#gameOverBox {
+  background: #fff;
+  padding: 22px;
+  border-radius: 12px;
+  text-align: center;
+  color:#000;
+}
+#gameOverBox p {
+  font-size: 18px;
+  margin: 0 0 10px 0;
+}
+</style>
+</head>
+<body class="white">
+
+<div class="bottom-bg">
+  <img src="images/gogo.png" alt="">
+</div>
+
+<div id="score">0</div>
+<canvas id="canvas" width="300" height="300"></canvas>
+
+<div class="panel">
+  <button id="toggleBtn">开始</button>
+  <button id="speedDown">-</button>
+  <button>速度 <span id="speedText">5</span></button>
+  <button id="speedUp">+</button>
+  <button onclick="goBack()">主页</button>
+</div>
+
+<div class="panel">
+  <button onclick="setTheme('white')">白色背景</button>
+  <button onclick="setTheme('dark')">黑色背景</button>
+</div>
+
+<div id="gameOverPanel">
+  <div id="gameOverBox">
+    <p>游戏结束</p>
+    <p>得分：<span id="finalScore">0</span></p>
+    <p>最高分：<span id="bestScore">0</span></p>
+    <button onclick="restart()">开始</button>
+    <button onclick="goBack()">主页</button>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const scoreText = document.getElementById('score');
+const speedText = document.getElementById('speedText');
+const toggleBtn = document.getElementById('toggleBtn');
+const speedUp = document.getElementById('speedUp');
+const speedDown = document.getElementById('speedDown');
+const gameOverPanel = document.getElementById('gameOverPanel');
+const finalScore = document.getElementById('finalScore');
+const bestScore = document.getElementById('bestScore');
+
+const grid = 15;
+const count = 20;
+
+let snake = [
+  {x:10,y:10},{x:9,y:10},{x:8,y:10},
+  {x:7,y:10},{x:6,y:10},{x:5,y:10}
+];
+let food = {x:15,y:10};
+let dx = 1, dy = 0;
+let score = 0;
+let loop;
+let gameOver = false;
+let paused = true;
+
+let foodBlink = true;
+setInterval(() => { foodBlink = !foodBlink; }, 500);
+
+const foodColor = '#FF8898';
+
+let speedLevel = 5;
+const speedMap = {
+  1:300,2:260,3:220,4:180,5:150,
+  6:120,7:90,8:60,9:40
+};
+
+let best = parseInt(localStorage.getItem('snakeBest')) || 0;
+let currentTheme = 'white';
+
+function setTheme(theme) {
+  currentTheme = theme;
+  draw();
+}
+
+function clearAllTimersAndEvents() {
+  clearInterval(loop);
+  document.removeEventListener('touchstart', handleTouchStart);
+  document.removeEventListener('touchend', handleTouchEnd);
+  window.removeEventListener('pagehide', clearAllTimersAndEvents);
+}
+
+function draw() {
+  if (currentTheme === 'dark') {
+    ctx.fillStyle = '#000';
+  } else {
+    ctx.fillStyle = '#fff';
+  }
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  if (foodBlink) {
+    ctx.fillStyle = foodColor;
+    ctx.fillRect(food.x*grid, food.y*grid, grid-1, grid-1);
+  }
+
+  let snakeColor;
+  if (currentTheme === 'dark') {
+    snakeColor = '#ffffff';
+  } else {
+    snakeColor = '#000000';
+  }
+
+  ctx.fillStyle = snakeColor;
+  snake.forEach(s => {
+    ctx.fillRect(s.x*grid, s.y*grid, grid-1, grid-1);
+  });
+
+  scoreText.innerText = score;
+}
+
+function move() {
+  if (gameOver || paused) return;
+
+  const head = {x: snake[0].x + dx, y: snake[0].y + dy};
+  head.x = (head.x + count) % count;
+  head.y = (head.y + count) % count;
+
+  for (let i=1; i<snake.length; i++) {
+    if (snake[i].x === head.x && snake[i].y === head.y) {
+      showGameOver();
+      return;
+    }
+  }
+
+  snake.unshift(head);
+
+  if (head.x === food.x && head.y === food.y) {
+    score += 10;
+    food.x = Math.floor(Math.random()*count);
+    food.y = Math.floor(Math.random()*count);
+  } else {
+    snake.pop();
+  }
+
+  draw();
+}
+
+function showGameOver() {
+  gameOver = true;
+  clearAllTimersAndEvents();
+
+  if (score > best) {
+    best = score;
+    localStorage.setItem('snakeBest', best);
+  }
+
+  finalScore.innerText = score;
+  bestScore.innerText = best;
+  gameOverPanel.style.display = "flex";
+  toggleBtn.innerText = "开始";
+}
+
+let startX, startY;
+function handleTouchStart(e) {
+  startX = e.touches[0].clientX;
+  startY = e.touches[0].clientY;
+}
+function handleTouchEnd(e) {
+  if (gameOver || paused) return;
+  const dxv = e.changedTouches[0].clientX - startX;
+  const dyv = e.changedTouches[0].clientY - startY;
+
+  if (Math.abs(dxv) > Math.abs(dyv)) {
+    if (dxv > 0) {
+      if (dx !== -1) { dx=1; dy=0; }
+    } else {
+      if (dx !== 1) { dx=-1; dy=0; }
+    }
+  } else {
+    if (dyv > 0) {
+      if (dy !== -1) { dy=1; dx=0; }
+    } else {
+      if (dy !== 1) { dy=-1; dx=0; }
+    }
+  }
+}
+
+toggleBtn.onclick = () => {
+  if (gameOver) return;
+
+  if (paused) {
+    paused = false;
+    toggleBtn.innerText = "暂停";
+    if (!loop) {
+      loop = setInterval(move, speedMap[speedLevel]);
+    }
+  } else {
+    paused = true;
+    toggleBtn.innerText = "继续";
+  }
+};
+
+speedUp.onclick = () => {
+  if (speedLevel < 9) speedLevel++;
+  speedText.innerText = speedLevel;
+  clearInterval(loop);
+  loop = setInterval(move, speedMap[speedLevel]);
+};
+speedDown.onclick = () => {
+  if (speedLevel > 1) speedLevel--;
+  speedText.innerText = speedLevel;
+  clearInterval(loop);
+  loop = setInterval(move, speedMap[speedLevel]);
+};
+
+function restart() {
+  clearAllTimersAndEvents();
+
+  gameOver = false;
+  paused = true;
+  toggleBtn.innerText = "开始";
+  gameOverPanel.style.display = 'none';
+  dx=1; dy=0;
+  score=0;
+  snake = [
+    {x:10,y:10},{x:9,y:10},{x:8,y:10},
+    {x:7,y:10},{x:6,y:10},{x:5,y:10}
+  ];
+  food = {x:15,y:10};
+
+  document.addEventListener('touchstart', handleTouchStart);
+  document.addEventListener('touchend', handleTouchEnd);
+  window.addEventListener('pagehide', clearAllTimersAndEvents);
+
+  draw();
+  loop = null;
+}
+
+function goBack() {
+  clearAllTimersAndEvents();
+  location.href = 'index.html';
+}
+
+document.addEventListener('touchstart', handleTouchStart);
+document.addEventListener('touchend', handleTouchEnd);
+window.addEventListener('pagehide', clearAllTimersAndEvents);
+
+draw();
+</script>
+</body>
+</html>
