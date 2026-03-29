@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+<title>物理画线接球</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+
+/* 左右两侧玻璃渐变防误触边条 */
+.glass-edge-left,
+.glass-edge-right {
+    position: fixed;
+    top: 0;
+    width: 10px;
+    height: 100%;
+    z-index: 9999;
+    pointer-events: none;
+}
+.glass-edge-left {
+    left: 0;
+    background: linear-gradient(to right, rgba(255,255,255,0.5), transparent);
+}
+.glass-edge-right {
+    right: 0;
+    background: linear-gradient(to left, rgba(255,255,255,0.5), transparent);
+}
+
+body{
+    background: linear-gradient(160deg, #f0f9ff 0%, #e0f2fe 100%);
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:12px;
+    font-family:system-ui,sans-serif;
+    position: relative;
+}
+.control-bar{
+    width:100%;
+    max-width:380px;
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    justify-content:center;
+    padding:12px 10px;
+    margin-bottom:12px;
+    background:rgba(255,255,255,0.5);
+    backdrop-filter:blur(10px);
+    border-radius:16px;
+    border-bottom:2px solid #ddd;
+}
+.control-bar button{
+    padding:9px 12px;
+    border:none;
+    border-radius:12px;
+    background:linear-gradient(180deg,#91b3ff,#7a9dff);
+    color:#fff;
+    font-size:14px;
+    font-weight:500;
+    box-shadow:0 3px 8px rgba(120, 150, 255, 0.2);
+    cursor:pointer;
+    transition:0.2s;
+}
+.control-bar button:active{
+    transform:scale(0.96);
+    background:linear-gradient(180deg,#7a9dff,#668cff);
+}
+#c{
+    border-radius:20px;
+    background:linear-gradient(180deg,#f7f9fc,#eef5ff);
+    box-shadow:0 8px 30px rgba(0,0,0,0.08),inset 0 2px 4px rgba(255,255,255,0.8);
+    overflow:hidden;
+}
+.modal{
+    position:fixed;
+    top:0;left:0;
+    width:100%;height:100%;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:10;
+}
+.modal-box{
+    background:rgba(255,255,255,0.85);
+    backdrop-filter:blur(20px);
+    padding:30px 36px;
+    border-radius:20px;
+    text-align:center;
+    box-shadow:0 10px 40px rgba(0,0,0,0.15);
+    border:1px solid rgba(255,255,255,0.6);
+}
+.modal-box p{
+    font-size:18px;
+    font-weight:600;
+    color:#333;
+    margin-bottom:18px;
+}
+.modal-box button{
+    padding:10px 20px;
+    border:none;
+    border-radius:12px;
+    background:linear-gradient(180deg,#91b3ff,#7a9dff);
+    color:white;
+    font-size:16px;
+    font-weight:500;
+    cursor:pointer;
+}
+</style>
+</head>
+<body>
+
+<!-- 左右玻璃防误触边 -->
+<div class="glass-edge-left"></div>
+<div class="glass-edge-right"></div>
+
+<div class="control-bar">
+    <button onclick="resetLevel()">重新开始</button>
+    <button onclick="goHome()">返回主界面</button>
+</div>
+
+<canvas id="c" width="360" height="640"></canvas>
+
+<div class="modal" id="victoryModal">
+    <div class="modal-box">
+        <p>恭喜！胜利了！</p>
+        <button onclick="nextLevel()">下一关</button>
+    </div>
+</div>
+
+<div class="modal" id="defeatModal">
+    <div class="modal-box">
+        <p>挑战失败！</p>
+        <button onclick="resetLevel()">重新开始</button>
+    </div>
+</div>
+
+<div class="modal" id="finalModal">
+    <div class="modal-box">
+        <p>🎉 恭喜你，游戏挑战全部结束！</p>
+        <button onclick="goHome()">返回主界面</button>
+    </div>
+</div>
+
+<script>
+const canvas=document.getElementById('c');
+const ctx=canvas.getContext('2d');
+const W=canvas.width,H=canvas.height;
+const POOL_HEIGHT=60;
+
+let gravity=0.3;
+
+const ball={
+    x:W/2,y:120,r:14,
+    vx:0,vy:0,speed:0.98,
+    lastMoveTime:Date.now()
+};
+
+const hole={x:W/2,y:H-POOL_HEIGHT-25,r:22};
+
+const levels=[
+    {obstacles:[],speedAreas:[],slowAreas:[],rotateAreas:[]},
+    {obstacles:[{x:130,y:300,w:100,h:30}],speedAreas:[],slowAreas:[],rotateAreas:[]},
+    {obstacles:[{x:60,y:280,w:60,h:40},{x:240,y:280,w:60,h:40}],speedAreas:[],slowAreas:[],rotateAreas:[]},
+    {obstacles:[{x:50,y:250,w:90,h:50},{x:220,y:250,w:90,h:50}],speedAreas:[],slowAreas:[],rotateAreas:[]},
+    {obstacles:[{x:120,y:300,w:120,h:30}],speedAreas:[],slowAreas:[{x:60,y:400,w:120,h:40}],rotateAreas:[]},
+    {obstacles:[{x:80,y:270,w:70,h:50}],speedAreas:[{x:140,y:380,w:70,h:50}],slowAreas:[],rotateAreas:[]},
+    {obstacles:[{x:70,y:260,w:60,h:40},{x:230,y:260,w:60,h:40}],speedAreas:[{x:90,y:360,w:50,h:40}],slowAreas:[{x:220,y:360,w:50,h:40}],rotateAreas:[]},
+    {obstacles:[{x:110,y:280,w:140,h:30}],speedAreas:[],slowAreas:[],rotateAreas:[{x:180,y:400,r:28}]},
+    {obstacles:[{x:140,y:250,w:80,h:40}],speedAreas:[],slowAreas:[{x:40,y:390,w:100,h:40}],rotateAreas:[{x:220,y:380,r:25}]},
+    {obstacles:[{x:50,y:240,w:70,h:40},{x:240,y:320,w:70,h:40}],speedAreas:[{x:130,y:370,w:50,h:40}],slowAreas:[{x:200,y:430,w:50,h:40}],rotateAreas:[{x:100,y:420,r:22}]}
+];
+
+let currentLevel=0;
+let points=[],isDrawing=false;
+
+const victoryModal=document.getElementById('victoryModal');
+const defeatModal=document.getElementById('defeatModal');
+const finalModal=document.getElementById('finalModal');
+
+function randomBallX(){return ball.r+Math.random()*(W-2*ball.r);}
+
+canvas.addEventListener('mousedown',start);
+canvas.addEventListener('mousemove',draw);
+canvas.addEventListener('mouseup',end);
+canvas.addEventListener('touchstart',e=>{e.preventDefault();start(e.touches[0]);});
+canvas.addEventListener('touchmove',e=>{e.preventDefault();draw(e.touches[0]);});
+canvas.addEventListener('touchend',e=>{e.preventDefault();end();});
+
+function start(e){
+    isDrawing=true;
+    const rect=canvas.getBoundingClientRect();
+    points=[{x:e.clientX-rect.left,y:e.clientY-rect.top}];
+}
+function draw(e){
+    if(!isDrawing)return;
+    const rect=canvas.getBoundingClientRect();
+    points.push({x:e.clientX-rect.left,y:e.clientY-rect.top});
+}
+function end(){isDrawing=false;}
+
+function resetLevel(){
+    defeatModal.style.display="none";
+    victoryModal.style.display="none";
+    finalModal.style.display="none";
+    ball.x=randomBallX();ball.y=120;
+    ball.vx=0;ball.vy=0;
+    ball.lastMoveTime=Date.now();
+    points=[];
+}
+function nextLevel(){
+    victoryModal.style.display="none";
+    currentLevel++;
+    if(currentLevel>=levels.length){
+        finalModal.style.display="flex";
+        currentLevel=levels.length-1;
+    }
+    resetLevel();
+}
+function goHome(){
+    window.location.href = "index.html";
+}
+
+function checkObstacle(){
+    const obs=levels[currentLevel].obstacles;
+    for(let item of obs){
+        if(ball.x+ball.r>item.x&&ball.x-ball.r<item.x+item.w&&
+           ball.y+ball.r>item.y&&ball.y-ball.r<item.y+item.h)return true;
+    }
+    return false;
+}
+function checkPool(){return ball.y+ball.r>=H-POOL_HEIGHT;}
+function checkSpeedArea(){
+    const area=levels[currentLevel].speedAreas;
+    for(let item of area){
+        if(ball.x>item.x&&ball.x<item.x+item.w&&ball.y>item.y&&ball.y<item.y+item.h){
+            ball.vx*=1.5;ball.vy*=1.5;
+        }
+    }
+}
+function checkSlowArea(){
+    const area=levels[currentLevel].slowAreas;
+    for(let item of area){
+        if(ball.x>item.x&&ball.x<item.x+item.w&&ball.y>item.y&&ball.y<item.y+item.h){
+            ball.vx*=0.5;ball.vy*=0.5;
+        }
+    }
+}
+function checkRotateArea(){
+    const area=levels[currentLevel].rotateAreas;
+    for(let item of area){
+        const dx=ball.x-item.x,dy=ball.y-item.y;
+        const dist=Math.hypot(dx,dy);
+        if(dist<item.r+ball.r){
+            const s=0.05;
+            const nx=ball.vx*Math.cos(s)-ball.vy*Math.sin(s);
+            const ny=ball.vx*Math.sin(s)+ball.vy*Math.cos(s);
+            ball.vx=nx;ball.vy=ny;
+        }
+    }
+}
+
+function update(){
+    ball.vy+=gravity;
+    for(let i=1;i<points.length;i++){
+        const r=lineBallCollision(points[i-1],points[i],ball);
+        if(r){ball.vx=r.nx*3;ball.vy=r.ny*3;ball.lastMoveTime=Date.now();}
+    }
+    if(checkObstacle()||checkPool()){showDefeat();return;}
+    checkSpeedArea();checkSlowArea();checkRotateArea();
+    ball.x+=ball.vx;ball.y+=ball.vy;
+    ball.vx*=ball.speed;ball.vy*=ball.speed;
+    if(ball.x<ball.r){ball.x=ball.r;ball.vx*=-0.8;}
+    if(ball.x>W-ball.r){ball.x=W-ball.r;ball.vx*=-0.8;}
+    if(ball.y<ball.r){ball.y=ball.r;ball.vy*=-0.8;}
+    const dx=ball.x-hole.x,dy=ball.y-hole.y;
+    if(Math.hypot(dx,dy)<hole.r-4){showVictory();return;}
+    if(Date.now()-ball.lastMoveTime>2000){
+        if(Math.abs(ball.vx)<0.01&&Math.abs(ball.vy)<0.01){showDefeat();return;}
+    }
+}
+
+function lineBallCollision(p1,p2,b){
+    const A=b.x-p1.x,B=b.y-p1.y,C=p2.x-p1.x,D=p2.y-p1.y;
+    const dot=A*C+B*D,lenSq=C*C+D*D;
+    if(lenSq===0)return null;
+    const t=Math.max(0,Math.min(1,dot/lenSq));
+    const x=p1.x+t*C,y=p1.y+t*D;
+    const dx=b.x-x,dy=b.y-y;
+    const d=Math.hypot(dx,dy);
+    if(d<b.r)return {nx:dx/d,ny:dy/d};
+    return null;
+}
+
+function showVictory(){victoryModal.style.display="flex";ball.vx=0;ball.vy=0;}
+function showDefeat(){defeatModal.style.display="flex";ball.vx=0;ball.vy=0;}
+
+function render(){
+    ctx.fillStyle='#f7f9fc';
+    ctx.fillRect(0,0,W,H);
+    const d=levels[currentLevel];
+
+    ctx.fillStyle='#ffc8dd';
+    d.obstacles.forEach(o=>{
+        ctx.beginPath();
+        ctx.roundRect(o.x,o.y,o.w,o.h,8);
+        ctx.fill();
+    });
+
+    ctx.fillStyle='#bde0fe';
+    d.speedAreas.forEach(a=>{ctx.beginPath();ctx.roundRect(a.x,a.y,a.w,a.h,10);ctx.fill();});
+    ctx.fillStyle='#f8cbb9';
+    d.slowAreas.forEach(a=>{ctx.beginPath();ctx.roundRect(a.x,a.y,a.w,a.h,10);ctx.fill();});
+    ctx.fillStyle='#cdb4db';
+    d.rotateAreas.forEach(a=>{ctx.beginPath();ctx.arc(a.x,a.y,a.r,0,Math.PI*2);ctx.fill();});
+
+    ctx.fillStyle='#ff9f9f';
+    ctx.beginPath();
+    ctx.arc(hole.x,hole.y,hole.r,0,Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle='#ff8b8b';
+    ctx.beginPath();
+    ctx.arc(hole.x,hole.y,hole.r*0.7,0,Math.PI*2);
+    ctx.fill();
+
+    if(points.length>1){
+        ctx.strokeStyle='#7a9dff';
+        ctx.lineWidth=8;
+        ctx.lineCap='round';
+        ctx.lineJoin='round';
+        ctx.beginPath();
+        ctx.moveTo(points[0].x,points[0].y);
+        points.forEach(p=>ctx.lineTo(p.x,p.y));
+        ctx.stroke();
+    }
+
+    const g=ctx.createLinearGradient(0,H-POOL_HEIGHT,0,H);
+    g.addColorStop(0,'#bde0fe');
+    g.addColorStop(1,'#91c3ff');
+    ctx.fillStyle=g;
+    ctx.fillRect(0,H-POOL_HEIGHT,W,POOL_HEIGHT);
+
+    ctx.fillStyle='#222';
+    ctx.beginPath();
+    ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,0.3)';
+    ctx.beginPath();
+    ctx.arc(ball.x-ball.r*0.3,ball.y-ball.r*0.3,4,0,Math.PI*2);
+    ctx.fill();
+}
+
+function loop(){update();render();requestAnimationFrame(loop);}
+loop();
+window.addEventListener('pagehide', function() {
+  document.removeEventListener('keydown', window.keyListener);
+});
+
+</script>
+</body>
+</html>
