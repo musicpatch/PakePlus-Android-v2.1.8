@@ -12,6 +12,14 @@
             font-family: "微软雅黑", sans-serif;
         }
 
+        html, body {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            position: fixed;
+            left:0; top:0; right:0; bottom:0;
+        }
+
         .game-index {
             width: 100vw;
             height: calc(100vw * 16 / 9);
@@ -135,37 +143,22 @@
     <div class="game-index">
         <div class="bg-characters"></div>
         <div class="bg-logo" id="randomLogo"></div>
-
         <div class="game-list" id="gameList"></div>
-
         <div class="index-footer">© Family Guy 恶搞之家 小游戏合集</div>
     </div>
 
-    <audio id="bgMusic" src="mp3/gigisong.mp3" loop>
+    <audio id="bgMusic" src="mp3/gigisong.mp3" loop></audio>
     <div class="custom-alert" id="customAlert"></div>
 
     <script>
-        // 角色头像
         const charIcons = [
-            "images/Stewie.png",
-            "images/Quagmire.png",
-            "images/Peter.png",
-            "images/Mort.png",
-            "images/Meg.png",
-            "images/Lois.png",
-            "images/Joe.png",
-            "images/Jillian.png",
-            "images/Herbert.png",
-            "images/MortGoldman.png",
-            "images/EvilMonkey.png",
-            "images/Cleveland.png",
-            "images/Chris.png",
-            "images/Carter.png",
-            "images/Brian.png",
-            "images/Bonnie.png"
+            "images/Stewie.png", "images/Quagmire.png", "images/Peter.png",
+            "images/Mort.png", "images/Meg.png", "images/Lois.png",
+            "images/Joe.png", "images/Jillian.png", "images/Herbert.png",
+            "images/MortGoldman.png", "images/EvilMonkey.png", "images/Cleveland.png",
+            "images/Chris.png", "images/Carter.png", "images/Brian.png", "images/Bonnie.png"
         ];
 
-        // 最新修正游戏列表（按 A-Z 排序）
         const gameList = [
             { name: "2048", path: "2048.html", desc: "合成Family Guy角色，解锁恶搞名场面" },
             { name: "吃豆人", path: "22/index.html", desc: "经典吃豆玩法，躲避追击吃满豆子" },
@@ -194,12 +187,10 @@
             { name: "找不同", path: "3/zhaobutong.html", desc: "擦亮双眼，找出两张图的细微差别" }
         ];
 
-        // 随机头像
         function getRandIcon() {
             return charIcons[Math.floor(Math.random() * charIcons.length)];
         }
 
-        // 渲染列表
         const listEl = document.getElementById("gameList");
         gameList.forEach(game => {
             const item = document.createElement("div");
@@ -215,29 +206,24 @@
             listEl.appendChild(item);
         });
 
-        // 随机LOGO
         const logos = ["images/logo.png", "images/logo1.png", "images/logo2.png"];
         document.getElementById("randomLogo").style.backgroundImage = `url(${logos[Math.floor(Math.random()*logos.length)]})`;
 
-        // 音乐
         const bgMusic = document.getElementById("bgMusic");
         document.getElementById("randomLogo").onclick = () => {
-            if (bgMusic.paused) {
-                bgMusic.play();
-            } else {
-                bgMusic.pause();
-            }
+            if (bgMusic.paused) bgMusic.play();
+            else bgMusic.pause();
         };
 
-        // 跳转
+        // 原始跳转方式（因为游戏页面已自带防返回脚本）
         function startGame(gameName) {
-            const gameMap = {};
-            gameList.forEach(g => gameMap[g.name] = g.path);
-            showAlert(`即将开始：${gameName}`);
-            setTimeout(() => { window.location.href = gameMap[gameName]; }, 1000);
+            const game = gameList.find(g => g.name === gameName);
+            if (game) {
+                showAlert(`即将开始：${game.name}`);
+                setTimeout(() => { window.location.href = game.path; }, 300);
+            }
         }
 
-        // 提示
         function showAlert(text) {
             const alertEl = document.getElementById("customAlert");
             alertEl.innerText = text;
@@ -254,6 +240,36 @@
         let maxReq = requestAnimationFrame(function(){});
         for(let i=0; i<maxReq; i++) cancelAnimationFrame(i);
     });
+    </script>
+
+    <script>
+        function goFull() {
+            let el = document.documentElement;
+            if (el.requestFullscreen) el.requestFullscreen();
+            else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+        }
+        window.onload = function(){
+            setTimeout(goFull, 150);
+        };
+
+        // 保留边缘触摸拦截（仅主页，避免误触退出，但不影响游戏内部）
+        document.addEventListener('touchstart', function(e){
+            let x = e.touches[0].clientX;
+            let w = window.innerWidth;
+            if(x < w*0.05 || x > w*0.95){
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        }, { passive:false });
+
+        document.addEventListener('touchmove', function(e){
+            let x = e.touches[0].clientX;
+            let w = window.innerWidth;
+            if(x < w*0.05 || x > w*0.95){
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        }, { passive:false });
     </script>
 </body>
 </html>
