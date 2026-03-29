@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>吃豆人 · 三关挑战</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            touch-action: manipulation;
+        }
+
+        body {
+            background: #292929;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 12px;
+        }
+
+        .game-container {
+            max-width: 600px;
+            width: 100%;
+            background: #000;
+            border-radius: 32px;
+            overflow: hidden;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+
+        /* 顶部信息栏 */
+        .info-bar {
+            background: #111;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: #fff;
+            border-bottom: 1px solid #333;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .stats {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        .score-box, .lives-box, .level-box {
+            background: #000;
+            padding: 4px 12px;
+            border-radius: 40px;
+            font-weight: bold;
+            display: inline-flex;
+            align-items: baseline;
+            gap: 6px;
+        }
+        .score-box span:first-child, .lives-box span:first-child, .level-box span:first-child {
+            font-size: 12px;
+            color: #ff6b6b;
+        }
+        .score-box span:last-child, .lives-box span:last-child, .level-box span:last-child {
+            font-size: 20px;
+            font-family: monospace;
+        }
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+        }
+        .action-btn {
+            background: #ffd166;
+            border: none;
+            font-size: 14px;
+            font-weight: bold;
+            padding: 6px 14px;
+            border-radius: 40px;
+            cursor: pointer;
+            color: #2c2c2c;
+            transition: 0.1s;
+        }
+        .action-btn:active {
+            transform: scale(0.96);
+        }
+        .restart-btn {
+            background: #ff6b6b;
+            color: white;
+        }
+
+        /* 画布区域 */
+        .canvas-wrapper {
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 8px;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: auto;
+            background: #000;
+            border-radius: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+        }
+
+       /* 十字键区域 - 更紧密布局 */
+       .dpad {
+           background: #111;
+           padding: 12px 12px 16px;
+           border-top: 1px solid #333;
+           display: flex;
+           justify-content: center;
+           align-items: center;
+       }
+       .dpad-grid {
+           display: grid;
+           grid-template-columns: repeat(3, 60px);
+           grid-template-rows: repeat(3, 60px);
+           gap: 2px;          /* 缝隙从 4px 减小到 2px */
+           background: #1e1e1e;
+           border-radius: 50px;
+           padding: 2px;      /* 内边距从 4px 减小到 2px */
+       }
+        .dpad-btn {
+            background: #2c2c2c;
+            border: none;
+            border-radius: 40px;
+            font-size: 28px;
+            font-weight: bold;
+            color: white;
+            cursor: pointer;
+            box-shadow: 0 3px 0 #0a0a0a;
+            transition: 0.05s linear;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .dpad-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 1px 0 #0a0a0a;
+        }
+        .btn-up {
+            grid-column: 2;
+            grid-row: 1;
+            background: #4ecdc4;
+            color: #1e2a2a;
+        }
+        .btn-left {
+            grid-column: 1;
+            grid-row: 2;
+            background: #ff6b6b;
+            color: #2c2c2c;
+        }
+        .btn-right {
+            grid-column: 3;
+            grid-row: 2;
+            background: #ff6b6b;
+            color: #2c2c2c;
+        }
+        .btn-down {
+            grid-column: 2;
+            grid-row: 3;
+            background: #4ecdc4;
+            color: #1e2a2a;
+        }
+
+        /* 覆盖层 */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.92);
+            backdrop-filter: blur(12px);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            gap: 24px;
+            text-align: center;
+        }
+        .overlay h1 {
+            font-size: 48px;
+            color: #ffe600;
+            text-shadow: 0 0 10px #ffa500;
+        }
+        .overlay button {
+            background: #ffe600;
+            border: none;
+            font-size: 28px;
+            font-weight: bold;
+            padding: 12px 32px;
+            border-radius: 60px;
+            cursor: pointer;
+            box-shadow: 0 6px 0 #b37b2e;
+            transition: 0.05s linear;
+        }
+        .overlay button:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #b37b2e;
+        }
+        .final-score {
+            font-size: 20px;
+            color: #fff;
+            background: rgba(0,0,0,0.6);
+            padding: 8px 20px;
+            border-radius: 40px;
+        }
+    </style>
+</head>
+<body>
+<div class="game-container">
+    <div class="info-bar">
+        <div class="stats">
+            <div class="score-box">
+                <span>🍒 SCORE</span>
+                <span id="scoreDisplay">0</span>
+            </div>
+            <div class="lives-box">
+                <span>❤️ LIVES</span>
+                <span id="livesDisplay">3</span>
+            </div>
+            <div class="level-box">
+                <span>🎮 LV</span>
+                <span id="levelDisplay">1</span>
+            </div>
+        </div>
+        <div class="action-buttons">
+            <button class="action-btn restart-btn" id="restartGameBtn">🔄 重开</button>
+            <button class="action-btn" id="pauseGameBtn">⏸ 暂停</button>
+        </div>
+    </div>
+    <div class="canvas-wrapper">
+        <canvas id="gameCanvas"></canvas>
+    </div>
+    <div class="dpad">
+        <div class="dpad-grid">
+            <button class="dpad-btn btn-up" id="btnUp">▲</button>
+            <button class="dpad-btn btn-left" id="btnLeft">◀</button>
+            <button class="dpad-btn btn-right" id="btnRight">▶</button>
+            <button class="dpad-btn btn-down" id="btnDown">▼</button>
+        </div>
+    </div>
+</div>
+
+<div id="overlay" class="overlay" style="display: flex;">
+    <h1 id="overlayTitle">PAC-MAN</h1>
+    <div class="final-score" id="finalScoreMsg"></div>
+    <button id="startRestartBtn">开始游戏</button>
+</div>
+
+<script>
+    // ************ 游戏引擎 (完整) ************
+    (function(){
+        if (!Date.now) Date.now = function() { return new Date().getTime(); };
+        (function() {
+            var vendors = ['webkit', 'moz'];
+            for (var i = 0; i < vendors.length && !window.requestAnimationFrame; ++i) {
+                var vp = vendors[i];
+                window.requestAnimationFrame = window[vp+'RequestAnimationFrame'];
+                window.cancelAnimationFrame = (window[vp+'CancelAnimationFrame'] || window[vp+'CancelRequestAnimationFrame']);
+            }
+            if (/iP(ad|hone|od).*OS 6/.test(window.navigator.userAgent) || !window.requestAnimationFrame || !window.cancelAnimationFrame) {
+                var lastTime = 0;
+                window.requestAnimationFrame = function(callback) {
+                    var now = Date.now();
+                    var nextTime = Math.max(lastTime + 16, now);
+                    return setTimeout(function() { callback(lastTime = nextTime); }, nextTime - now);
+                };
+                window.cancelAnimationFrame = clearTimeout;
+            }
+        }());
+
+        function Game(canvasId, width, height) {
+            var _ = this;
+            _.width = width || 800;
+            _.height = height || 600;
+            var $canvas = document.getElementById(canvasId);
+            $canvas.width = _.width;
+            $canvas.height = _.height;
+            var _context = $canvas.getContext('2d');
+            var _stages = [];
+            var _events = {};
+            var _index = 0, _hander;
+
+            var Item = function(params){
+                this._params = params||{};
+                this._id = 0;
+                this._stage = null;
+                this._settings = {
+                    x:0, y:0, width:20, height:20, type:0, color:'#F00', status:1,
+                    orientation:0, speed:0, location:null, coord:null, path:[], vector:null,
+                    frames:1, times:0, timeout:0, control:{},
+                    update:function(){}, draw:function(){}
+                };
+                for(var i in this._settings) this[i] = this._settings[i];
+                for(var i in params) this[i] = params[i];
+            };
+            Item.prototype.bind = function(eventType,callback){
+                if(!_events[eventType]){
+                    _events[eventType] = {};
+                    $canvas.addEventListener(eventType,function(e){
+                        var position = _.getPosition(e);
+                        _stages[_index].items.forEach(function(item){
+                            if(Math.abs(position.x-item.x)<item.width/2&&Math.abs(position.y-item.y)<item.height/2){
+                                var key = 's'+_index+'i'+item._id;
+                                if(_events[eventType][key]) _events[eventType][key](e);
+                            }
+                        });
+                        e.preventDefault();
+                    });
+                }
+                _events[eventType]['s'+this._stage.index+'i'+this._id] = callback.bind(this);
+            };
+
+            var Map = function(params){
+                this._params = params||{};
+                this._id = 0;
+                this._stage = null;
+                this._settings = {
+                    x:0, y:0, size:20, data:[], x_length:0, y_length:0,
+                    frames:1, times:0, cache:false,
+                    update:function(){}, draw:function(){}
+                };
+                for(var i in this._settings) this[i] = this._settings[i];
+                for(var i in params) this[i] = params[i];
+            };
+            Map.prototype.get = function(x,y){
+                if(this.data[y] && typeof this.data[y][x]!='undefined') return this.data[y][x];
+                return -1;
+            };
+            Map.prototype.set = function(x,y,value){
+                if(this.data[y]) this.data[y][x] = value;
+            };
+            Map.prototype.coord2position = function(cx,cy){
+                return { x:this.x + cx*this.size + this.size/2, y:this.y + cy*this.size + this.size/2 };
+            };
+            Map.prototype.position2coord = function(x,y){
+                var fx = Math.abs(x-this.x)%this.size - this.size/2;
+                var fy = Math.abs(y-this.y)%this.size - this.size/2;
+                return { x:Math.floor((x-this.x)/this.size), y:Math.floor((y-this.y)/this.size), offset:Math.sqrt(fx*fx+fy*fy) };
+            };
+            Map.prototype.finder = function(params){
+                var defaults = { map:null, start:{}, end:{}, type:'path' };
+                var options = {};
+                for(var i in defaults) options[i] = defaults[i];
+                for(var i in params) options[i] = params[i];
+                if(options.map[options.start.y][options.start.x]||options.map[options.end.y][options.end.x]) return [];
+                var finded = false, result = [];
+                var y_length = options.map.length, x_length = options.map[0].length;
+                var steps = Array(y_length).fill().map(()=>Array(x_length).fill(0));
+                var _getValue = function(x,y){
+                    if(options.map[y] && typeof options.map[y][x]!='undefined') return options.map[y][x];
+                    return -1;
+                };
+                var _next = function(to){
+                    var value = _getValue(to.x,to.y);
+                    if(value<1){
+                        if(value==-1){ to.x = (to.x+x_length)%x_length; to.y = (to.y+y_length)%y_length; to.change=1; }
+                        if(!steps[to.y][to.x]) result.push(to);
+                    }
+                };
+                var _render = function(list){
+                    var new_list = [];
+                    var next = function(from,to){
+                        var value = _getValue(to.x,to.y);
+                        if(value<1){
+                            if(value==-1){ to.x = (to.x+x_length)%x_length; to.y = (to.y+y_length)%y_length; to.change=1; }
+                            if(to.x==options.end.x && to.y==options.end.y){
+                                steps[to.y][to.x] = from; finded = true;
+                            }else if(!steps[to.y][to.x]){
+                                steps[to.y][to.x] = from;
+                                new_list.push(to);
+                            }
+                        }
+                    };
+                    list.forEach(function(current){
+                        next(current,{y:current.y+1,x:current.x});
+                        next(current,{y:current.y,x:current.x+1});
+                        next(current,{y:current.y-1,x:current.x});
+                        next(current,{y:current.y,x:current.x-1});
+                    });
+                    if(!finded && new_list.length) _render(new_list);
+                };
+                _render([options.start]);
+                if(finded){
+                    var current = options.end;
+                    if(options.type=='path'){
+                        while(current.x!=options.start.x || current.y!=options.start.y){
+                            result.unshift(current);
+                            current = steps[current.y][current.x];
+                        }
+                    }else if(options.type=='next'){
+                        _next({x:current.x+1,y:current.y});
+                        _next({x:current.x,y:current.y+1});
+                        _next({x:current.x-1,y:current.y});
+                        _next({x:current.x,y:current.y-1});
+                    }
+                }
+                return result;
+            };
+
+            var Stage = function(params){
+                this._params = params||{};
+                this._settings = {
+                    index:0, status:0, maps:[], audio:[], images:[], items:[], timeout:0,
+                    update:function(){}
+                };
+                for(var i in this._settings) this[i] = this._settings[i];
+                for(var i in params) this[i] = params[i];
+            };
+            Stage.prototype.createItem = function(options){
+                var item = new Item(options);
+                if(item.location){
+                    var pos = item.location.coord2position(item.coord.x,item.coord.y);
+                    item.x = pos.x; item.y = pos.y;
+                }
+                item._stage = this;
+                item._id = this.items.length;
+                this.items.push(item);
+                return item;
+            };
+            Stage.prototype.resetItems = function(){
+                this.status = 1;
+                this.items.forEach(function(item){
+                    for(var i in item._settings) item[i] = item._settings[i];
+                    for(var i in item._params) item[i] = item._params[i];
+                    if(item.location){
+                        var pos = item.location.coord2position(item.coord.x,item.coord.y);
+                        item.x = pos.x; item.y = pos.y;
+                    }
+                });
+            };
+            Stage.prototype.getItemsByType = function(type){
+                return this.items.filter(function(item){ return item.type==type; });
+            };
+            Stage.prototype.createMap = function(options){
+                var map = new Map(options);
+                map.data = JSON.parse(JSON.stringify(map._params.data));
+                map.y_length = map.data.length;
+                map.x_length = map.data[0].length;
+                map.imageData = null;
+                map._stage = this;
+                map._id = this.maps.length;
+                this.maps.push(map);
+                return map;
+            };
+            Stage.prototype.resetMaps = function(){
+                this.status = 1;
+                this.maps.forEach(function(map){
+                    for(var i in map._settings) map[i] = map._settings[i];
+                    for(var i in map._params) map[i] = map._params[i];
+                    map.data = JSON.parse(JSON.stringify(map._params.data));
+                    map.y_length = map.data.length;
+                    map.x_length = map.data[0].length;
+                    map.imageData = null;
+                });
+            };
+            Stage.prototype.reset = function(){
+                for(var i in this._settings) this[i] = this._settings[i];
+                for(var i in this._params) this[i] = this._params[i];
+                this.resetItems();
+                this.resetMaps();
+            };
+            Stage.prototype.bind = function(eventType,callback){
+                if(!_events[eventType]){
+                    _events[eventType] = {};
+                    window.addEventListener(eventType,function(e){
+                        var key = 's' + _index;
+                        if(_events[eventType][key]) _events[eventType][key](e);
+                        e.preventDefault();
+                    });
+                }
+                _events[eventType]['s'+this.index] = callback.bind(this);
+            };
+
+            this.start = function(){
+                var f=0;
+                var fn = function(){
+                    var stage = _stages[_index];
+                    _context.clearRect(0,0,_.width,_.height);
+                    _context.fillStyle = '#000';
+                    _context.fillRect(0,0,_.width,_.height);
+                    f++;
+                    if(stage.timeout) stage.timeout--;
+                    if(stage.update()!=false){
+                        stage.maps.forEach(function(map){
+                            if(!(f%map.frames)) map.times = f/map.frames;
+                            if(map.cache){
+                                if(!map.imageData){
+                                    _context.save();
+                                    map.draw(_context);
+                                    map.imageData = _context.getImageData(0,0,_.width,_.height);
+                                    _context.restore();
+                                }else{
+                                    _context.putImageData(map.imageData,0,0);
+                                }
+                            }else{
+                                map.update();
+                                map.draw(_context);
+                            }
+                        });
+                        stage.items.forEach(function(item){
+                            if(!(f%item.frames)) item.times = f/item.frames;
+                            if(stage.status==1 && item.status!=2){
+                                if(item.location) item.coord = item.location.position2coord(item.x,item.y);
+                                if(item.timeout) item.timeout--;
+                                item.update();
+                            }
+                            item.draw(_context);
+                        });
+                    }
+                    _hander = requestAnimationFrame(fn);
+                };
+                _hander = requestAnimationFrame(fn);
+            };
+            this.stop = function(){ if(_hander) cancelAnimationFrame(_hander); };
+            this.getPosition = function(e){
+                var box = $canvas.getBoundingClientRect();
+                return { x:e.clientX - box.left*(_.width/box.width), y:e.clientY - box.top*(_.height/box.height) };
+            };
+            this.createStage = function(options){
+                var stage = new Stage(options);
+                stage.index = _stages.length;
+                _stages.push(stage);
+                return stage;
+            };
+            this.setStage = function(index){
+                _stages[_index].status = 0;
+                _index = index;
+                _stages[_index].status = 1;
+                return _stages[_index];
+            };
+            this.nextStage = function(){
+                if(_index<_stages.length-1) return this.setStage(++_index);
+                else throw new Error('unfound new stage.');
+            };
+            this.init = function(){ _index=0; this.start(); };
+        }
+        window.Game = Game;
+    })();
+
+    // ************ 业务逻辑 (三关 + 紧凑十字键 + 独立重开按钮) ************
+    (function(){
+        // 地图数据（28x31）
+        var _DATA = [
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+            [1,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            [1,0,1,1,1,1,0,1,1,1,1,1,0,1,1,0,1,1,1,1,1,0,1,1,1,1,0,1],
+            [1,0,1,1,1,1,0,1,1,1,1,1,0,1,1,0,1,1,1,1,1,0,1,1,1,1,0,1],
+            [1,0,1,1,1,1,0,1,1,1,1,1,0,1,1,0,1,1,1,1,1,0,1,1,1,1,0,1],
+            [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            [1,0,1,1,1,1,0,1,1,0,1,1,1,1,1,1,1,1,0,1,1,0,1,1,1,1,0,1],
+            [1,0,1,1,1,1,0,1,1,0,1,1,1,1,1,1,1,1,0,1,1,0,1,1,1,1,0,1],
+            [1,0,0,0,0,0,0,1,1,0,0,0,0,1,1,0,0,0,0,1,1,0,0,0,0,0,0,1],
+            [1,1,1,1,1,1,0,1,1,1,1,1,0,1,1,0,1,1,1,1,1,0,1,1,1,1,1,1],
+            [1,1,1,1,1,1,0,1,1,1,1,1,0,1,1,0,1,1,1,1,1,0,1,1,1,1,1,1],
+            [1,1,1,1,1,1,0,1,1,0,0,0,0,0,0,0,0,0,0,1,1,0,1,1,1,1,1,1],
+            [1,1,1,1,1,1,0,1,1,0,1,1,1,2,2,1,1,1,0,1,1,0,1,1,1,1,1,1],
+            [1,1,1,1,1,1,0,1,1,0,1,2,2,2,2,2,2,1,0,1,1,0,1,1,1,1,1,1],
+            [0,0,0,0,0,0,0,0,0,0,1,2,2,2,2,2,2,1,0,0,0,0,0,0,0,0,0,0],
+            [1,1,1,1,1,1,0,1,1,0,1,2,2,2,2,2,2,1,0,1,1,0,1,1,1,1,1,1],
+            [1,1,1,1,1,1,0,1,1,0,1,1,1,1,1,1,1,1,0,1,1,0,1,1,1,1,1,1],
+            [1,1,1,1,1,1,0,1,1,0,0,0,0,0,0,0,0,0,0,1,1,0,1,1,1,1,1,1],
+            [1,1,1,1,1,1,0,1,1,0,1,1,1,1,1,1,1,1,0,1,1,0,1,1,1,1,1,1],
+            [1,1,1,1,1,1,0,1,1,0,1,1,1,1,1,1,1,1,0,1,1,0,1,1,1,1,1,1],
+            [1,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            [1,0,1,1,1,1,0,1,1,1,1,1,0,1,1,0,1,1,1,1,1,0,1,1,1,1,0,1],
+            [1,0,1,1,1,1,0,1,1,1,1,1,0,1,1,0,1,1,1,1,1,0,1,1,1,1,0,1],
+            [1,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,1],
+            [1,1,1,0,1,1,0,1,1,0,1,1,1,1,1,1,1,1,0,1,1,0,1,1,0,1,1,1],
+            [1,1,1,0,1,1,0,1,1,0,1,1,1,1,1,1,1,1,0,1,1,0,1,1,0,1,1,1],
+            [1,0,0,0,0,0,0,1,1,0,0,0,0,1,1,0,0,0,0,1,1,0,0,0,0,0,0,1],
+            [1,0,1,1,1,1,1,1,1,1,1,1,0,1,1,0,1,1,1,1,1,1,1,1,1,1,0,1],
+            [1,0,1,1,1,1,1,1,1,1,1,1,0,1,1,0,1,1,1,1,1,1,1,1,1,1,0,1],
+            [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+        ];
+        var _GOODS = { '1,3':1, '26,3':1, '1,23':1, '26,23':1 };
+        var _COS = [1,0,-1,0];
+        var _SIN = [0,1,0,-1];
+        var _COLOR = ['#F00','#F93','#0CF','#F9C'];
+        
+        // 全局变量
+        var _LIFE = 3;
+        var _SCORE = 0;
+        var _LEVEL = 1;          // 当前关卡 1~3
+        var _MAX_LEVEL = 3;
+
+        // DOM 元素
+        var canvas = document.getElementById('gameCanvas');
+        var scoreSpan = document.getElementById('scoreDisplay');
+        var livesSpan = document.getElementById('livesDisplay');
+        var levelSpan = document.getElementById('levelDisplay');
+        var pauseBtn = document.getElementById('pauseGameBtn');
+        var restartBtn = document.getElementById('restartGameBtn');
+        var overlay = document.getElementById('overlay');
+        var startRestartBtn = document.getElementById('startRestartBtn');
+        var finalScoreMsg = document.getElementById('finalScoreMsg');
+        var overlayTitle = document.getElementById('overlayTitle');
+
+        // 画布逻辑尺寸
+        var MAP_W = 28, MAP_H = 31;
+        var CELL_SIZE = 20;
+        canvas.width = MAP_W * CELL_SIZE;
+        canvas.height = MAP_H * CELL_SIZE;
+
+        var game = new Game('gameCanvas', canvas.width, canvas.height);
+        var stage, map, beans, player, items;
+
+        function updateUI() {
+            scoreSpan.innerText = _SCORE;
+            livesSpan.innerText = _LIFE;
+            levelSpan.innerText = _LEVEL;
+        }
+
+        // 重置怪物速度（根据当前关卡）
+        function updateMonsterSpeed() {
+            var baseSpeed = 1.0;
+            var speed = baseSpeed + (_LEVEL - 1) * 0.3; // 1.0, 1.3, 1.6
+            items.forEach(function(item) {
+                item.speed = speed;
+            });
+        }
+
+        // 进入下一关
+        function nextLevel() {
+            if (_LEVEL < _MAX_LEVEL) {
+                _LEVEL++;
+                updateUI();
+                // 重置豆子地图
+                beans.data = JSON.parse(JSON.stringify(_DATA));
+                // 重置能量豆
+                for (var key in _GOODS) {
+                    var coord = key.split(',');
+                    beans.set(parseInt(coord[0]), parseInt(coord[1]), 0);
+                }
+                // 重置怪物位置和状态
+                items.forEach(function(item) {
+                    item.status = 1;
+                    item.coord = {x: item._params.coord.x, y: item._params.coord.y};
+                    var pos = map.coord2position(item.coord.x, item.coord.y);
+                    item.x = pos.x; item.y = pos.y;
+                    item.timeout = 0;
+                });
+                // 重置玩家位置
+                player.coord = {x: 13.5, y: 23};
+                var playerPos = map.coord2position(player.coord.x, player.coord.y);
+                player.x = playerPos.x;
+                player.y = playerPos.y;
+                player.orientation = 2;
+                // 更新怪物速度
+                updateMonsterSpeed();
+                // 恢复游戏状态
+                stage.status = 1;
+            } else {
+                // 通关胜利
+                overlayTitle.innerText = 'YOU WIN!';
+                finalScoreMsg.innerText = 'FINAL SCORE: ' + (_SCORE + 50 * Math.max(_LIFE - 1, 0));
+                overlay.style.display = 'flex';
+                game.stop();
+            }
+        }
+
+        // 重置整个游戏（包括关卡）
+        function resetGameAndStart() {
+            _SCORE = 0;
+            _LIFE = 3;
+            _LEVEL = 1;
+            updateUI();
+            // 重置主舞台
+            var mainStage = game.setStage(1);
+            mainStage.reset();
+            // 重新获取物品引用（重置后 items 会更新）
+            items = stage.getItemsByType(2);
+            // 更新怪物速度
+            updateMonsterSpeed();
+            overlay.style.display = 'none';
+            pauseBtn.innerText = '⏸ 暂停';
+            overlayTitle.innerText = 'PAC-MAN';
+            // 确保游戏处于运行状态
+            if (stage.status !== 1) stage.status = 1;
+        }
+
+        // ********** 开始页 **********
+        (function(){
+            var startStage = game.createStage();
+            startStage.createItem({
+                x: canvas.width/2, y: canvas.height*0.45, width:100, height:100, frames:3,
+                draw:function(context){
+                    var t = Math.abs(5 - this.times%10);
+                    context.fillStyle = '#FFE600';
+                    context.beginPath();
+                    context.arc(this.x, this.y, this.width/2, t*0.04*Math.PI, (2-t*0.04)*Math.PI, false);
+                    context.lineTo(this.x, this.y);
+                    context.fill();
+                    context.fillStyle = '#000';
+                    context.beginPath();
+                    context.arc(this.x+5, this.y-27, 7, 0, 2*Math.PI);
+                    context.fill();
+                }
+            });
+            startStage.createItem({
+                x: canvas.width/2, y: canvas.height*0.6,
+                draw:function(context){
+                    context.font = 'bold 42px Helvetica';
+                    context.textAlign = 'center';
+                    context.fillStyle = '#FFF';
+                    context.fillText('吃豆人', this.x, this.y);
+                }
+            });
+            startStage.bind('keydown',function(e){
+                if(e.keyCode===13||e.keyCode===32) game.nextStage();
+            });
+        })();
+
+        // ********** 游戏主舞台 **********
+        (function(){
+            stage = game.createStage({
+                update:function(){
+                    if(this.status==1){
+                        // 检查玩家与怪物的碰撞
+                        for(var i=0;i<items.length;i++){
+                            var item = items[i];
+                            if(!map.get(item.coord.x,item.coord.y) && !map.get(player.coord.x,player.coord.y)){
+                                var dx = item.x - player.x, dy = item.y - player.y;
+                                var distSq = dx*dx+dy*dy;
+                                if(distSq < 750 && item.status != 4){
+                                    if(item.status == 3){
+                                        // 怪物受惊状态，吃掉怪物
+                                        item.status = 4;
+                                        _SCORE += 10;
+                                        updateUI();
+                                    } else {
+                                        // 正常状态，玩家死亡
+                                        this.status = 3;
+                                        this.timeout = 30;
+                                    }
+                                }
+                            }
+                        }
+                        // 检查是否吃完所有豆子
+                        if(JSON.stringify(beans.data).indexOf(0)<0){
+                            nextLevel();  // 进入下一关或胜利
+                        }
+                    } else if(this.status==3){
+                        // 玩家死亡倒计时
+                        if(!this.timeout){
+                            _LIFE--;
+                            updateUI();
+                            if(_LIFE > 0){
+                                this.resetItems();  // 重置所有物品（包括玩家和怪物位置）
+                                // 重置后确保速度根据当前关卡重新应用
+                                updateMonsterSpeed();
+                            } else {
+                                // 游戏结束，显示结束画面
+                                overlayTitle.innerText = 'GAME OVER';
+                                finalScoreMsg.innerText = 'FINAL SCORE: ' + (_SCORE + 50 * Math.max(_LIFE - 1, 0));
+                                overlay.style.display = 'flex';
+                                game.stop();
+                                return false;
+                            }
+                        }
+                    }
+                }
+            });
+
+            // 地图（迷宫墙壁）
+            map = stage.createMap({
+                x:0, y:0, size:CELL_SIZE, data:_DATA, cache:true,
+                draw:function(context){
+                    context.lineWidth = 2;
+                    for(var j=0;j<this.y_length;j++){
+                        for(var i=0;i<this.x_length;i++){
+                            var value = this.get(i,j);
+                            if(value){
+                                var code = [0,0,0,0];
+                                if(this.get(i+1,j) && !(this.get(i+1,j-1)&&this.get(i+1,j+1)&&this.get(i,j-1)&&this.get(i,j+1))) code[0]=1;
+                                if(this.get(i,j+1) && !(this.get(i-1,j+1)&&this.get(i+1,j+1)&&this.get(i-1,j)&&this.get(i+1,j))) code[1]=1;
+                                if(this.get(i-1,j) && !(this.get(i-1,j-1)&&this.get(i-1,j+1)&&this.get(i,j-1)&&this.get(i,j+1))) code[2]=1;
+                                if(this.get(i,j-1) && !(this.get(i-1,j-1)&&this.get(i+1,j-1)&&this.get(i-1,j)&&this.get(i+1,j))) code[3]=1;
+                                if(code.indexOf(1)>-1){
+                                    context.strokeStyle = value==2?"#FFF":"#09C";
+                                    var pos = this.coord2position(i,j);
+                                    switch(code.join('')){
+                                        case '1100': context.beginPath(); context.arc(pos.x+this.size/2,pos.y+this.size/2,this.size/2,Math.PI,1.5*Math.PI,false); context.stroke(); break;
+                                        case '0110': context.beginPath(); context.arc(pos.x-this.size/2,pos.y+this.size/2,this.size/2,1.5*Math.PI,2*Math.PI,false); context.stroke(); break;
+                                        case '0011': context.beginPath(); context.arc(pos.x-this.size/2,pos.y-this.size/2,this.size/2,0,0.5*Math.PI,false); context.stroke(); break;
+                                        case '1001': context.beginPath(); context.arc(pos.x+this.size/2,pos.y-this.size/2,this.size/2,0.5*Math.PI,Math.PI,false); context.stroke(); break;
+                                        default:
+                                            var dist = this.size/2;
+                                            code.forEach(function(v,idx){ if(v){ context.beginPath(); context.moveTo(pos.x,pos.y); context.lineTo(pos.x-_COS[idx]*dist,pos.y-_SIN[idx]*dist); context.stroke(); } });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // 豆子地图
+            beans = stage.createMap({
+                x:0, y:0, size:CELL_SIZE, data:_DATA, frames:8,
+                draw:function(context){
+                    for(var j=0;j<this.y_length;j++){
+                        for(var i=0;i<this.x_length;i++){
+                            if(!this.get(i,j)){
+                                var pos = this.coord2position(i,j);
+                                context.fillStyle = "#F5F5DC";
+                                if(_GOODS[i+','+j]){
+                                    context.beginPath();
+                                    context.arc(pos.x, pos.y, 3+this.times%2, 0, 2*Math.PI);
+                                    context.fill();
+                                }else{
+                                    context.fillRect(pos.x-2, pos.y-2, 4, 4);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // 创建4个怪物
+            for(var i=0;i<4;i++){
+                stage.createItem({
+                    width:30, height:30, orientation:3, color:_COLOR[i], location:map,
+                    coord:{x:12+i, y:14}, vector:{x:12+i, y:14}, type:2, frames:10, speed:1.0,
+                    timeout:Math.floor(Math.random()*120),
+                    update:function(){
+                        var new_map;
+                        if(this.status==3 && !this.timeout) this.status=1;
+                        if(!this.coord.offset){
+                            if(this.status==1){
+                                if(!this.timeout){
+                                    new_map = JSON.parse(JSON.stringify(map.data).replace(/2/g,0));
+                                    var id=this._id;
+                                    items.forEach(function(item){ if(item._id!=id && item.status==1) new_map[item.coord.y][item.coord.x]=1; });
+                                    this.path = map.finder({ map:new_map, start:this.coord, end:player.coord });
+                                    if(this.path.length) this.vector = this.path[0];
+                                }
+                            }else if(this.status==3){
+                                new_map = JSON.parse(JSON.stringify(map.data).replace(/2/g,0));
+                                var id=this._id;
+                                items.forEach(function(item){ if(item._id!=id) new_map[item.coord.y][item.coord.x]=1; });
+                                this.path = map.finder({ map:new_map, start:player.coord, end:this.coord, type:'next' });
+                                if(this.path.length) this.vector = this.path[Math.floor(Math.random()*this.path.length)];
+                            }else if(this.status==4){
+                                new_map = JSON.parse(JSON.stringify(map.data).replace(/2/g,0));
+                                this.path = map.finder({ map:new_map, start:this.coord, end:this._params.coord });
+                                if(this.path.length) this.vector = this.path[0];
+                                else this.status=1;
+                            }
+                            if(this.vector && this.vector.change){
+                                this.coord.x = this.vector.x; this.coord.y = this.vector.y;
+                                var pos = map.coord2position(this.coord.x,this.coord.y);
+                                this.x = pos.x; this.y = pos.y;
+                            }
+                            if(this.vector){
+                                if(this.vector.x>this.coord.x) this.orientation=0;
+                                else if(this.vector.x<this.coord.x) this.orientation=2;
+                                else if(this.vector.y>this.coord.y) this.orientation=1;
+                                else if(this.vector.y<this.coord.y) this.orientation=3;
+                            }
+                        }
+                        this.x += this.speed*_COS[this.orientation];
+                        this.y += this.speed*_SIN[this.orientation];
+                    },
+                    draw:function(context){
+                        var isSick = (this.status==3 && (this.timeout>80 || this.times%2));
+                        if(this.status!=4){
+                            context.fillStyle = isSick?'#BABABA':this.color;
+                            context.beginPath();
+                            context.arc(this.x,this.y,this.width*0.5,0,Math.PI,true);
+                            if(this.times%2==0){
+                                context.lineTo(this.x-this.width*0.5,this.y+this.height*0.4);
+                                context.quadraticCurveTo(this.x-this.width*0.4,this.y+this.height*0.5,this.x-this.width*0.2,this.y+this.height*0.3);
+                                context.quadraticCurveTo(this.x,this.y+this.height*0.5,this.x+this.width*0.2,this.y+this.height*0.3);
+                                context.quadraticCurveTo(this.x+this.width*0.4,this.y+this.height*0.5,this.x+this.width*0.5,this.y+this.height*0.4);
+                            }else{
+                                context.lineTo(this.x-this.width*0.5,this.y+this.height*0.3);
+                                context.quadraticCurveTo(this.x-this.width*0.25,this.y+this.height*0.5,this.x,this.y+this.height*0.3);
+                                context.quadraticCurveTo(this.x+this.width*0.25,this.y+this.height*0.5,this.x+this.width*0.5,this.y+this.height*0.3);
+                            }
+                            context.fill();
+                        }
+                        context.fillStyle = '#FFF';
+                        if(isSick){
+                            context.beginPath();
+                            context.arc(this.x-this.width*0.15,this.y-this.height*0.21,this.width*0.08,0,2*Math.PI);
+                            context.arc(this.x+this.width*0.15,this.y-this.height*0.21,this.width*0.08,0,2*Math.PI);
+                            context.fill();
+                        }else{
+                            context.beginPath();
+                            context.arc(this.x-this.width*0.15,this.y-this.height*0.21,this.width*0.12,0,2*Math.PI);
+                            context.arc(this.x+this.width*0.15,this.y-this.height*0.21,this.width*0.12,0,2*Math.PI);
+                            context.fill();
+                            context.fillStyle='#000';
+                            context.beginPath();
+                            context.arc(this.x-this.width*(0.15-0.04*_COS[this.orientation]),this.y-this.height*(0.21-0.04*_SIN[this.orientation]),this.width*0.07,0,2*Math.PI);
+                            context.arc(this.x+this.width*(0.15+0.04*_COS[this.orientation]),this.y-this.height*(0.21-0.04*_SIN[this.orientation]),this.width*0.07,0,2*Math.PI);
+                            context.fill();
+                        }
+                    }
+                });
+            }
+            items = stage.getItemsByType(2);
+
+            // 玩家
+            player = stage.createItem({
+                width:30, height:30, type:1, location:map, coord:{x:13.5,y:23}, orientation:2, speed:2, frames:10,
+                update:function(){
+                    var coord = this.coord;
+                    if(!coord.offset){
+                        if(this.control.orientation!=='undefined'){
+                            if(!map.get(coord.x+_COS[this.control.orientation], coord.y+_SIN[this.control.orientation]))
+                                this.orientation = this.control.orientation;
+                        }
+                        this.control = {};
+                        var val = map.get(coord.x+_COS[this.orientation], coord.y+_SIN[this.orientation]);
+                        if(val==0){
+                            this.x += this.speed*_COS[this.orientation];
+                            this.y += this.speed*_SIN[this.orientation];
+                        }else if(val<0){
+                            this.x -= map.size*(map.x_length-1)*_COS[this.orientation];
+                            this.y -= map.size*(map.y_length-1)*_SIN[this.orientation];
+                        }
+                    }else{
+                        if(!beans.get(this.coord.x,this.coord.y)){
+                            _SCORE++;
+                            updateUI();
+                            beans.set(this.coord.x,this.coord.y,1);
+                            if(_GOODS[this.coord.x+','+this.coord.y]){
+                                items.forEach(function(item){
+                                    if(item.status==1||item.status==3){
+                                        item.timeout = 450;
+                                        item.status = 3;
+                                    }
+                                });
+                            }
+                        }
+                        this.x += this.speed*_COS[this.orientation];
+                        this.y += this.speed*_SIN[this.orientation];
+                    }
+                },
+                draw:function(context){
+                    context.fillStyle = '#FFE600';
+                    context.beginPath();
+                    if(stage.status!=3){
+                        if(this.times%2) context.arc(this.x,this.y,this.width/2,(0.5*this.orientation+0.20)*Math.PI,(0.5*this.orientation-0.20)*Math.PI,false);
+                        else context.arc(this.x,this.y,this.width/2,(0.5*this.orientation+0.01)*Math.PI,(0.5*this.orientation-0.01)*Math.PI,false);
+                    }else{
+                        if(stage.timeout) context.arc(this.x,this.y,this.width/2,(0.5*this.orientation+1-0.02*stage.timeout)*Math.PI,(0.5*this.orientation-1+0.02*stage.timeout)*Math.PI,false);
+                    }
+                    context.lineTo(this.x,this.y);
+                    context.fill();
+                }
+            });
+
+            // 方向控制函数
+            function setDirection(ori){
+                if(player && stage && stage.status==1) player.control = {orientation:ori};
+            }
+            // 绑定十字键按钮
+            document.getElementById('btnLeft').addEventListener('click', ()=>setDirection(2));
+            document.getElementById('btnRight').addEventListener('click', ()=>setDirection(0));
+            document.getElementById('btnUp').addEventListener('click', ()=>setDirection(3));
+            document.getElementById('btnDown').addEventListener('click', ()=>setDirection(1));
+
+            // 键盘控制（保留）
+            stage.bind('keydown',function(e){
+                if(e.keyCode===13||e.keyCode===32){ 
+                    this.status = this.status==2?1:2;
+                    pauseBtn.innerText = this.status==2 ? '▶ 开始' : '⏸ 暂停';
+                }
+                else if(e.keyCode===39) setDirection(0);
+                else if(e.keyCode===40) setDirection(1);
+                else if(e.keyCode===37) setDirection(2);
+                else if(e.keyCode===38) setDirection(3);
+            });
+        })();
+
+        // 重开按钮事件
+        restartBtn.addEventListener('click', resetGameAndStart);
+        startRestartBtn.addEventListener('click', resetGameAndStart);
+        pauseBtn.addEventListener('click', function(){
+            if(stage){
+                stage.status = stage.status==2 ? 1 : 2;
+                pauseBtn.innerText = stage.status==2 ? '▶ 开始' : '⏸ 暂停';
+            }
+        });
+
+        game.init();
+        game.setStage(0);
+        overlay.style.display = 'flex';
+        finalScoreMsg.innerText = '';
+        updateUI();
+    })();
+</script>
+</body>
+</html>
