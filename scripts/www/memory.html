@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>恶搞之家记忆方块</title>
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+body {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: #f0f4f8;
+  padding: 10px;
+}
+.game {
+  width: 350px;
+  background: #f4f7fb;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+}
+
+.game-title {
+  margin-bottom: 16px;
+  text-align: center;
+}
+.logo-img {
+  width: 100%;
+  max-width: 290px;
+  height: auto;
+}
+
+.btns {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+.btns button {
+  flex: 1;
+  padding: 9px 0;
+  border: none;
+  border-radius: 6px;
+  background: #e2eaf2;
+  color: #3a4a5e;
+  cursor: pointer;
+}
+.btns button.active {
+  background: #5a9cd6;
+  color: #fff;
+}
+
+.board {
+  display: grid;
+  gap: 2px;
+  background: #e2eaf2;
+  padding: 3px;
+  border-radius: 8px;
+  margin-bottom: 14px;
+}
+
+.card {
+  aspect-ratio: 1/1;
+  position: relative;
+  cursor: pointer;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.card-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.35s ease;
+}
+.card.flipped .card-inner {
+  transform: rotateY(180deg);
+}
+.card-front, .card-back {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  border-radius: 6px;
+}
+
+/* ========== 这里只改卡片正面：你要的效果 ========== */
+.card-front {
+  transform: rotateY(180deg);
+  background-size: cover;
+  background-position: center;
+  /* 灰色底色 */
+  background-color: #999;
+  /* 白色边框 + 盖住人物（内嵌） */
+  box-sizing: border-box;
+  border: 5px solid #fff;
+}
+/* ================================================= */
+
+.card.matched {
+  pointer-events: none;
+  opacity: 0.85;
+  filter: grayscale(0.6);
+}
+.card-back {
+  background: #c2d0e0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  color: #fff;
+}
+.card-back::before {
+  content: "?";
+}
+
+.game-info {
+  display: flex;
+  justify-content: space-around;
+  padding: 8px;
+  background: #f0f4f8;
+  border-radius: 6px;
+  margin-bottom: 10px;
+}
+.info-label {
+  font-size: 12px;
+  color: #667385;
+}
+.info-value {
+  font-size: 15px;
+  font-weight: 500;
+  color: #3a4a5e;
+}
+.game-footer {
+  text-align: center;
+  font-size: 12px;
+  color: #8895a7;
+}
+
+.win {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255,255,255,0.9);
+  display: none;
+  justify-content: center;
+  align-items: center;
+}
+.win-content {
+  background: #f4f7fb;
+  padding: 25px;
+  border-radius: 12px;
+  text-align: center;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.1);
+}
+.win-stars {
+  font-size: 22px;
+  color: #5a9cd6;
+  margin: 10px 0;
+}
+.win-stats {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  margin-bottom: 18px;
+}
+.win-buttons {
+  display: flex;
+  gap: 6px;
+}
+.win-button {
+  flex: 1;
+  padding: 8px 0;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.win-button:nth-child(1) {
+  background: #e2eaf2;
+}
+.win-button:nth-child(2) {
+  background: #5a9cd6;
+  color: #fff;
+}
+</style>
+</head>
+<body>
+
+<div class="game">
+  <div class="game-title">
+    <img src="images/logo.png" class="logo-img" alt="恶搞之家记忆方块">
+  </div>
+
+  <div class="btns">
+    <button onclick="init('easy')" class="active">简单</button>
+    <button onclick="init('hard')" class="">困难</button>
+    <button onclick="init('hell')">地狱</button>
+  </div>
+
+  <div class="board" id="board"></div>
+
+  <div class="game-info">
+    <div>
+      <div class="info-label">步数</div>
+      <div class="info-value" id="moves">0</div>
+    </div>
+    <div>
+      <div class="info-label">时间</div>
+      <div class="info-value" id="time">00:00</div>
+    </div>
+  </div>
+
+  <div class="game-footer">找到相同角色</div>
+</div>
+
+<div class="win" id="win">
+  <div class="win-content">
+    <h2>通关成功 🎉</h2>
+    <div class="win-stars">★★★★★</div>
+    <div class="win-stats">
+      <div>
+        <div class="info-label">难度</div>
+        <div class="info-value" id="win-diff"></div>
+      </div>
+      <div>
+        <div class="info-label">用时</div>
+        <div class="info-value" id="win-time"></div>
+      </div>
+      <div>
+        <div class="info-label">步数</div>
+        <div class="info-value" id="win-moves"></div>
+      </div>
+    </div>
+    <div class="win-buttons">
+      <button class="win-button" onclick="changeDifficulty()">换难度</button>
+      <button class="win-button" onclick="init(currentDiff)">再来一局</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// 音效
+const sounds = {
+  flip: new Audio('mp3/fanpai.mp3'),
+  merge: new Audio('2046/merge.mp3'),
+  win: new Audio('mp3/gigi.mp3')
+};
+
+function playSound(name) {
+  const snd = sounds[name];
+  if (snd) {
+    snd.currentTime = 0;
+    snd.play().catch(() => {});
+  }
+}
+
+const chars = [
+  "images/Peter.png","images/Lois.png","images/Stewie.png","images/Brian.png",
+  "images/Chris.png","images/Meg.png","images/Quagmire.png","images/Joe.png",
+  "images/Cleveland.png","images/Herbert.png","images/Bonnie.png","images/Mort.png",
+  "images/Carter.png","images/EvilMonkey.png","images/MortGoldman.png","images/Jillian.png"
+];
+
+const diffs = {
+  easy: { row:4, col:3, pair:6,  name:"简单" },
+  hard: { row:5, col:4, pair:10, name:"困难" },
+  hell: { row:6, col:5, pair:15, name:"地狱" }
+};
+
+let currentDiff="easy",selected=[],moves=0,startTime=null,timerInterval=null,gameActive=false;
+
+function updateMoves(){moves++;document.getElementById("moves").textContent=moves;}
+function updateTimer(){
+  if(!startTime)return;
+  const diff=Math.floor((new Date()-startTime)/1000);
+  const m=Math.floor(diff/60).toString().padStart(2,"0");
+  const s=(diff%60).toString().padStart(2,"0");
+  document.getElementById("time").textContent=m+":"+s;
+}
+function startTimer(){
+  clearInterval(timerInterval);
+  startTime=new Date();
+  timerInterval=setInterval(updateTimer,1000);
+  gameActive=true;
+}
+function stopTimer(){clearInterval(timerInterval);gameActive=false;}
+
+function init(diff){
+  currentDiff=diff;
+  selected=[],moves=0;
+  document.getElementById("moves").textContent="0";
+  document.getElementById("time").textContent="00:00";
+  document.getElementById("win").style.display="none";
+  stopTimer();
+
+  document.querySelectorAll(".btns button").forEach((b,i)=>{
+    b.classList.toggle("active",i==(diff=="easy"?0:diff=="hard"?1:2));
+  });
+
+  const cfg=diffs[currentDiff];
+  const board=document.getElementById("board");
+  board.innerHTML="";
+  board.style.gridTemplateRows=`repeat(${cfg.row},1fr)`;
+  board.style.gridTemplateColumns=`repeat(${cfg.col},1fr)`;
+
+  const randomChars=[...chars].sort(()=>Math.random()-0.5).slice(0,cfg.pair);
+  const cardList=[...randomChars,...randomChars].sort(()=>Math.random()-0.5);
+
+  cardList.forEach(src=>{
+    const card=document.createElement("div");
+    card.className="card";
+    card.innerHTML=`<div class="card-inner">
+      <div class="card-front" style="background-image:url(${src})"></div>
+      <div class="card-back"></div>
+    </div>`;
+    card.onclick=()=>{
+      if(!gameActive)startTimer();
+      if(card.classList.contains("flipped")||card.classList.contains("matched")||selected.length>=2)return;
+      playSound('flip');
+      card.classList.add("flipped");
+      selected.push(card);
+      if(selected.length===2){updateMoves();setTimeout(checkMatch,300);}
+    };
+    board.appendChild(card);
+  });
+}
+
+function checkMatch(){
+  const [c1,c2]=selected;
+  const img1=c1.querySelector(".card-front").style.backgroundImage;
+  const img2=c2.querySelector(".card-front").style.backgroundImage;
+
+  if(img1===img2){
+    playSound('merge');
+    c1.classList.add("matched");
+    c2.classList.add("matched");
+    selected=[];
+    if(document.querySelectorAll(".matched").length===diffs[currentDiff].pair*2){
+      stopTimer();
+      playSound('win');
+      document.getElementById("win-diff").textContent=diffs[currentDiff].name;
+      document.getElementById("win-time").textContent=document.getElementById("time").textContent;
+      document.getElementById("win-moves").textContent=moves;
+      setTimeout(()=>{document.getElementById("win").style.display="flex";},600);
+    }
+  }else{
+    setTimeout(()=>{
+      c1.classList.remove("flipped");
+      c2.classList.remove("flipped");
+      selected=[];
+    },600);
+  }
+}
+
+function changeDifficulty(){
+  document.getElementById("win").style.display="none";
+  const order=["easy","hard","hell"];
+  init(order[(order.indexOf(currentDiff)+1)%3]);
+}
+
+window.onload=()=>init("easy");
+window.addEventListener('pagehide', function() {
+  document.removeEventListener('keydown', window.keyListener);
+});
+
+</script>
+</body>
+</html>
