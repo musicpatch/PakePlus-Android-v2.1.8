@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>黑白棋 - 恶搞之家</title>
+<style>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: "微软雅黑", sans-serif;
+}
+body {
+    background: #f8f8f8;
+    display: flex;
+    justify-content: center;
+    padding: 10px;
+}
+.game {
+    width: 100%;
+    max-width: 400px;
+    background: #fff;
+    border-radius: 16px;
+    padding: 24px;
+    text-align: center;
+}
+.title {
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+.mode-row {
+    margin-bottom: 14px;
+}
+.mode-row button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 10px;
+    margin: 0 6px;
+    cursor: pointer;
+    font-size: 14px;
+}
+.btn-pvp { background: #e3f2fd; }
+.btn-pvp.active { background: #1976d2; color: #fff; }
+.btn-ai  { background: #fce4ec; }
+.btn-ai.active  { background: #d81b60; color: #fff; }
+
+.score-row {
+    display: flex;
+    justify-content: space-around;
+    font-size: 16px;
+    margin-bottom: 10px;
+}
+.turn {
+    font-size: 16px;
+    margin-bottom: 16px;
+    font-weight: 500;
+}
+
+.board {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 1px;
+    background: #fff;
+    border: 2px solid #2d9a57;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    margin-bottom: 20px;
+}
+.cell {
+    background: #2d9a57;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    position: relative;
+}
+
+.piece {
+    width: 82%;
+    height: 82%;
+    border-radius: 50%;
+}
+.piece.black {
+    background: #111;
+}
+.piece.white {
+    background: #fff;
+    border: 1px solid #ddd;
+}
+
+.cell.hint::after {
+    content: "";
+    display: block;
+    width: 7px;
+    height: 7px;
+    background: rgba(255,255,255,0.6);
+    border-radius: 50%;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.btns button {
+    padding: 10px 18px;
+    border: none;
+    border-radius: 10px;
+    margin: 0 8px;
+    cursor: pointer;
+}
+.btn-restart {
+    background: #ff9eaa;
+    color: #fff;
+}
+.btn-back {
+    background: #eee;
+    color: #333;
+}
+</style>
+</head>
+
+<body>
+<div class="game">
+    <div class="title">黑白棋</div>
+
+    <div class="mode-row">
+        <button class="btn-pvp active" id="pvp">人人对战</button>
+        <button class="btn-ai" id="ai">人机对战</button>
+    </div>
+
+    <div class="score-row">
+        <div>黑：<span id="cntBlack">2</span></div>
+        <div>白：<span id="cntWhite">2</span></div>
+    </div>
+    <div class="turn" id="turn">黑棋回合</div>
+
+    <div class="board" id="board"></div>
+
+    <div class="btns">
+        <button class="btn-restart" onclick="restart()">重新开始</button>
+        <button class="btn-back" onclick="location.href='index.html'">返回</button>
+    </div>
+</div>
+
+<script>
+const SIZE = 8;
+let board;
+let current;
+let gameOver;
+let aiEnabled;
+
+const DIRS = [
+    [-1,-1], [-1,0], [-1,1],
+    [0,-1],          [0,1],
+    [1,-1],  [1,0], [1,1]
+];
+
+function init() {
+    board = Array(SIZE).fill().map(() => Array(SIZE).fill(""));
+    const m = SIZE >> 1;
+    board[m-1][m-1] = "W";
+    board[m-1][m  ] = "B";
+    board[m  ][m-1] = "B";
+    board[m  ][m  ] = "W";
+
+    current = "B";
+    gameOver = false;
+    render();
+}
+
+function render() {
+    const boardEl = document.getElementById("board");
+    boardEl.innerHTML = "";
+
+    for (let r = 0; r < SIZE; r++) {
+        for (let c = 0; c < SIZE; c++) {
+            const cell = document.createElement("div");
+            cell.className = "cell";
+
+            if (board[r][c]) {
+                const p = document.createElement("div");
+                p.className = "piece " + (board[r][c] === "B" ? "black" : "white");
+                cell.appendChild(p);
+            } else if (isValidMove(r, c, current)) {
+                cell.classList.add("hint");
+            }
+
+            cell.onclick = () => play(r, c);
+            boardEl.appendChild(cell);
+        }
+    }
+
+    const cntB = board.flat().filter(x => x === "B").length;
+    const cntW = board.flat().filter(x => x === "W").length;
+    document.getElementById("cntBlack").innerText = cntB;
+    document.getElementById("cntWhite").innerText = cntW;
+
+    if (gameOver) {
+        let res;
+        if (cntB > cntW) res = "黑棋胜";
+        else if (cntB < cntW) res = "白棋胜";
+        else res = "平局";
+        document.getElementById("turn").innerText = "结束：" + res;
+    } else {
+        document.getElementById("turn").innerText = (current === "B" ? "黑" : "白") + "棋回合";
+    }
+}
+
+function play(r, c) {
+    if (gameOver || board[r][c] !== "") return;
+    const flipped = getFlipped(r, c, current);
+    if (flipped.length === 0) return;
+
+    board[r][c] = current;
+    flipped.forEach(([x, y]) => board[x][y] = current);
+    nextTurn();
+    render();
+
+    if (aiEnabled && current === "W" && !gameOver) {
+        setTimeout(aiPlay, 700);
+    }
+}
+
+function nextTurn() {
+    const other = current === "B" ? "W" : "B";
+    if (hasValidMove(other)) {
+        current = other;
+    } else {
+        if (!hasValidMove(current)) {
+            gameOver = true;
+        }
+    }
+}
+
+function isValidMove(r, c, color) {
+    return getFlipped(r, c, color).length > 0;
+}
+
+function getFlipped(r, c, color) {
+    const res = [];
+    for (const [dx, dy] of DIRS) {
+        let x = r + dx, y = c + dy;
+        const temp = [];
+        while (x >= 0 && x < SIZE && y >= 0 && y < SIZE) {
+            if (board[x][y] === "") break;
+            if (board[x][y] !== color) {
+                temp.push([x, y]);
+            } else {
+                if (temp.length > 0) res.push(...temp);
+                break;
+            }
+            x += dx;
+            y += dy;
+        }
+    }
+    return res;
+}
+
+function hasValidMove(color) {
+    for (let r=0; r<SIZE; r++) for (let c=0; c<SIZE; c++) {
+        if (isValidMove(r,c,color)) return true;
+    }
+    return false;
+}
+
+// AI 正确走棋：优先角 > 边
+function aiPlay() {
+    const moves = [];
+    for (let r=0; r<SIZE; r++) for (let c=0; c<SIZE; c++) {
+        if (isValidMove(r,c,"W")) moves.push({r,c});
+    }
+    if (moves.length === 0) return;
+
+    // 打分：角最高
+    function score(p) {
+        const {r,c} = p;
+        if ((r===0||r===7)&&(c===0||c===7)) return 100;
+        if (r===0||r===7||c===0||c===7) return 50;
+        return 10;
+    }
+    moves.sort((a,b)=>score(b)-score(a));
+    play(moves[0].r, moves[0].c);
+}
+
+// 模式切换：修复完毕
+document.getElementById("pvp").addEventListener("click", () => {
+    if (current !== "B" || !isBoardClean()) return;
+    aiEnabled = false;
+    updateModeUI();
+});
+
+document.getElementById("ai").addEventListener("click", () => {
+    if (current !== "B" || !isBoardClean()) return;
+    aiEnabled = true;
+    updateModeUI();
+});
+
+function updateModeUI() {
+    document.getElementById("pvp").classList.toggle("active", !aiEnabled);
+    document.getElementById("ai").classList.toggle("active", aiEnabled);
+}
+
+// 判断是否刚开局、可切换
+function isBoardClean() {
+    for (let r=0; r<SIZE; r++) for (let c=0; c<SIZE; c++) {
+        if (board[r][c] !== "" && !((r==3||r==4)&&(c==3||c==4))) {
+            return false;
+        }
+    }
+    return true;
+}
+
+function restart() {
+    init();
+}
+
+window.onload = () => {
+    aiEnabled = false;
+    updateModeUI();
+    init();
+};
+window.addEventListener('pagehide', function() {
+  document.removeEventListener('keydown', window.keyListener);
+});
+
+</script>
+</body>
+</html>
