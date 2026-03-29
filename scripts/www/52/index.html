@@ -1,0 +1,431 @@
+﻿<!DOCTYPE html>
+<html lang="zh" class="no-js demo-1">
+<head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1"> 
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <script src="js/jquery.min.js"></script>
+    <script src="js/Helper.js"></script>
+    <script src="js/keyboard.js"></script>
+    <script src="js/const.js"></script>
+    <script src="js/level.js"></script>
+    <script src="js/crackAnimation.js"></script>
+    <script src="js/prop.js"></script>
+    <script src="js/bullet.js"></script>
+    <script src="js/tank.js"></script>
+    <script src="js/num.js"></script>
+    <script src="js/menu.js"></script>
+    <script src="js/map.js"></script>
+    <script src="js/Collision.js"></script>
+    <script src="js/stage.js"></script>
+    <script src="js/main.js"></script>
+    <link rel="stylesheet" type="text/css" href="css/default.css" />
+    <style type="text/css">
+        /* 手机自适应布局 + 触控按钮样式 (覆盖原有样式，确保布局正确) */
+        * {
+            touch-action: manipulation;
+            user-select: none;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #2a2a2a;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        .container > head {
+            flex-shrink: 0;
+            background: #111;
+            color: #ffcc00;
+            padding: 6px 8px;
+            text-align: center;
+            font-size: 11px;
+            border-bottom: 1px solid #ffcc00;
+        }
+        .main {
+            flex: 1;
+            position: relative;
+            background: #000;
+            overflow: hidden;
+        }
+        #canvasDiv {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        #canvasDiv canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        /* 触控面板 - 左右布局 */
+        .touch-panel {
+            background: rgba(0,0,0,0.85);
+            padding: 10px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+            border-top: 1px solid #ffcc00;
+            flex-shrink: 0;
+        }
+        /* 左侧方向键区域 */
+        .direction-area {
+            flex: 1;
+            display: flex;
+            justify-content: flex-start;
+        }
+        .direction-buttons {
+            display: grid;
+            grid-template-columns: repeat(3, 55px);
+            grid-template-rows: repeat(3, 55px);
+            gap: 5px;
+            background: #1e1e1e;
+            border-radius: 60px;
+            padding: 6px;
+        }
+        .dir-btn {
+            background: #2c2c2c;
+            border: none;
+            border-radius: 50px;
+            font-size: 26px;
+            font-weight: bold;
+            color: white;
+            cursor: pointer;
+            box-shadow: 0 3px 0 #0a0a0a;
+            transition: 0.05s linear;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .dir-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 1px 0 #0a0a0a;
+        }
+        .btn-up { grid-column: 2; grid-row: 1; background: #4ecdc4; color: #1e2a2a; }
+        .btn-left { grid-column: 1; grid-row: 2; background: #ff6b6b; color: #2c2c2c; }
+        .btn-right { grid-column: 3; grid-row: 2; background: #ff6b6b; color: #2c2c2c; }
+        .btn-down { grid-column: 2; grid-row: 3; background: #4ecdc4; color: #1e2a2a; }
+        /* 右侧按钮区域 */
+        .action-area {
+            flex: 1;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 12px;
+        }
+        .fire-btn {
+            background: #ff5555;
+            border: none;
+            width: 70px;
+            height: 70px;
+            border-radius: 70px;
+            font-size: 28px;
+            font-weight: bold;
+            color: white;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #b37b2e;
+            transition: 0.05s linear;
+        }
+        .fire-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #b37b2e;
+        }
+        .rapid-toggle {
+            background: #ffaa33;
+            border: none;
+            font-size: 14px;
+            font-weight: bold;
+            padding: 8px 12px;
+            border-radius: 40px;
+            cursor: pointer;
+            color: #2c2c2c;
+            box-shadow: 0 3px 0 #b37b2e;
+            transition: 0.05s linear;
+        }
+        .rapid-toggle:active {
+            transform: translateY(2px);
+            box-shadow: 0 1px 0 #b37b2e;
+        }
+        .action-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+        .action-btn {
+            background: #ffaa33;
+            border: none;
+            font-size: 14px;
+            font-weight: bold;
+            padding: 8px 14px;
+            border-radius: 40px;
+            cursor: pointer;
+            color: #2c2c2c;
+            box-shadow: 0 3px 0 #b37b2e;
+            transition: 0.05s linear;
+        }
+        .action-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 1px 0 #b37b2e;
+        }
+        @media (max-width: 550px) {
+            .direction-buttons {
+                grid-template-columns: repeat(3, 48px);
+                grid-template-rows: repeat(3, 48px);
+                gap: 4px;
+                padding: 5px;
+            }
+            .dir-btn {
+                font-size: 24px;
+            }
+            .fire-btn {
+                width: 60px;
+                height: 60px;
+                font-size: 24px;
+            }
+            .action-btn {
+                font-size: 12px;
+                padding: 6px 12px;
+            }
+            .rapid-toggle {
+                font-size: 12px;
+                padding: 6px 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <head><h3>---玩家1：大键盘移动，Space射击<br>---玩家2：小键盘移动，Enter射击<br>---N：下一关，P：上一关，Enter：开始</h3></head>
+    <div class="main clearfix">
+        <div id="canvasDiv">
+            <canvas id="wallCanvas"></canvas> 
+            <canvas id="tankCanvas"></canvas>
+            <canvas id="grassCanvas"></canvas>
+            <canvas id="overCanvas"></canvas> 
+            <canvas id="stageCanvas"></canvas>
+        </div>
+    </div>
+    <!-- 触控按钮区域 - 方向键左，射击右 -->
+    <div class="touch-panel">
+        <div class="direction-area">
+            <div class="direction-buttons">
+                <button class="dir-btn btn-up" data-key="w">▲</button>
+                <button class="dir-btn btn-left" data-key="a">◀</button>
+                <button class="dir-btn btn-right" data-key="d">▶</button>
+                <button class="dir-btn btn-down" data-key="s">▼</button>
+            </div>
+        </div>
+        <div class="action-area">
+            <button class="fire-btn" id="fireBtn">💥</button>
+            <button class="rapid-toggle" id="rapidToggle">🔫 单发</button>
+            <div class="action-buttons">
+                <button class="action-btn" data-key="Enter">▶ 开始</button>
+                <button class="action-btn" data-key="n">⏩ 下一关</button>
+                <button class="action-btn" data-key="p">⏪ 上一关</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 辅助函数：发送 keydown 和 keyup
+    function sendKeyDown(key) {
+        const keyMap = {
+            'w': 87, 'a': 65, 's': 83, 'd': 68,
+            ' ': 32, 'Enter': 13, 'n': 78, 'p': 80
+        };
+        const code = keyMap[key];
+        if (!code) return;
+        const event = new KeyboardEvent('keydown', {
+            key: key,
+            code: key === ' ' ? 'Space' : (key === 'Enter' ? 'Enter' : 'Key'+key.toUpperCase()),
+            keyCode: code,
+            which: code,
+            bubbles: true,
+            cancelable: true
+        });
+        document.dispatchEvent(event);
+    }
+    function sendKeyUp(key) {
+        const keyMap = {
+            'w': 87, 'a': 65, 's': 83, 'd': 68,
+            ' ': 32, 'Enter': 13, 'n': 78, 'p': 80
+        };
+        const code = keyMap[key];
+        if (!code) return;
+        const event = new KeyboardEvent('keyup', {
+            key: key,
+            code: key === ' ' ? 'Space' : (key === 'Enter' ? 'Enter' : 'Key'+key.toUpperCase()),
+            keyCode: code,
+            which: code,
+            bubbles: true,
+            cancelable: true
+        });
+        document.dispatchEvent(event);
+    }
+
+    // 连发模式控制
+    let rapidFire = false;
+    let fireTimer = null;
+    let isFiring = false;
+
+    function startFire() {
+        if (isFiring) return;
+        isFiring = true;
+        if (rapidFire) {
+            // 连发模式：立即发射一次，然后每隔 120ms 发射
+            sendKeyDown(' ');
+            setTimeout(() => sendKeyUp(' '), 30);
+            fireTimer = setInterval(() => {
+                if (isFiring) {
+                    sendKeyDown(' ');
+                    setTimeout(() => sendKeyUp(' '), 30);
+                }
+            }, 120);
+        } else {
+            // 单发模式：只发射一次
+            sendKeyDown(' ');
+            setTimeout(() => sendKeyUp(' '), 50);
+            isFiring = false; // 单发后立即结束，避免继续
+        }
+    }
+    function stopFire() {
+        if (fireTimer) {
+            clearInterval(fireTimer);
+            fireTimer = null;
+        }
+        isFiring = false;
+    }
+
+    // 绑定射击按钮事件（支持长按连发）
+    const fireBtn = document.getElementById('fireBtn');
+    fireBtn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        startFire();
+    });
+    fireBtn.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        stopFire();
+    });
+    fireBtn.addEventListener('touchcancel', (e) => {
+        e.preventDefault();
+        stopFire();
+    });
+    fireBtn.addEventListener('mousedown', startFire);
+    fireBtn.addEventListener('mouseup', stopFire);
+    fireBtn.addEventListener('mouseleave', stopFire);
+
+    // 连发模式切换按钮
+    const rapidToggle = document.getElementById('rapidToggle');
+    rapidToggle.addEventListener('click', () => {
+        rapidFire = !rapidFire;
+        rapidToggle.textContent = rapidFire ? '🔫 连发' : '🔫 单发';
+        rapidToggle.style.background = rapidFire ? '#ff7777' : '#ffaa33';
+    });
+
+    // 其他按钮（开始、下一关、上一关）：点击时发送一次完整按键
+    document.querySelectorAll('.action-btn').forEach(btn => {
+        const key = btn.getAttribute('data-key');
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            sendKeyDown(key);
+            setTimeout(() => sendKeyUp(key), 50);
+        });
+        btn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            sendKeyDown(key);
+            setTimeout(() => sendKeyUp(key), 50);
+        });
+    });
+
+    // 方向键：长按持续移动
+    let longPressTimer = null;
+    let currentKey = null;
+    function startLongPress(key) {
+        if (longPressTimer) clearInterval(longPressTimer);
+        currentKey = key;
+        sendKeyDown(key);
+        longPressTimer = setInterval(() => {
+            if (currentKey) sendKeyDown(currentKey);
+        }, 100);
+    }
+    function stopLongPress() {
+        if (longPressTimer) {
+            clearInterval(longPressTimer);
+            longPressTimer = null;
+        }
+        if (currentKey) {
+            sendKeyUp(currentKey);
+            currentKey = null;
+        }
+    }
+    document.querySelectorAll('.dir-btn').forEach(btn => {
+        const key = btn.getAttribute('data-key');
+        btn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            startLongPress(key);
+        });
+        btn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            stopLongPress();
+        });
+        btn.addEventListener('touchcancel', (e) => {
+            e.preventDefault();
+            stopLongPress();
+        });
+        btn.addEventListener('mousedown', () => startLongPress(key));
+        btn.addEventListener('mouseup', () => stopLongPress());
+        btn.addEventListener('mouseleave', () => stopLongPress());
+    });
+
+    // 防止触摸面板滚动页面
+    document.body.addEventListener('touchmove', function(e) {
+        if (e.target.closest('.touch-panel')) {
+            e.preventDefault();
+        }
+    }, { passive: false });
+
+    // 确保画布在窗口变化时保持比例
+    function fixCanvasSize() {
+        const div = document.getElementById('canvasDiv');
+        if (!div) return;
+        const canvases = div.getElementsByTagName('canvas');
+        if (!canvases.length) return;
+        const parent = div.parentElement;
+        if (!parent) return;
+        const w = parent.clientWidth;
+        const h = parent.clientHeight;
+        for (let i = 0; i < canvases.length; i++) {
+            const canvas = canvases[i];
+            const origW = canvas.width;
+            const origH = canvas.height;
+            if (origW && origH) {
+                const scale = Math.min(w / origW, h / origH);
+                canvas.style.width = (origW * scale) + 'px';
+                canvas.style.height = (origH * scale) + 'px';
+                canvas.style.left = ((w - origW * scale) / 2) + 'px';
+                canvas.style.top = ((h - origH * scale) / 2) + 'px';
+            }
+        }
+    }
+    window.addEventListener('resize', fixCanvasSize);
+    setTimeout(fixCanvasSize, 200);
+    const observer = new MutationObserver(fixCanvasSize);
+    const canvasDiv = document.getElementById('canvasDiv');
+    if (canvasDiv) observer.observe(canvasDiv, { childList: true, subtree: true, attributes: true });
+</script>
+</body>
+</html>
