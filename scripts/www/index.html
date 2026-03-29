@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>恶搞之家 小游戏合集</title>
+    <title>Family Guy 恶搞之家 小游戏合集</title>
     <style>
         * {
             margin: 0;
@@ -138,14 +138,14 @@
 
         <div class="game-list" id="gameList"></div>
 
-        <div class="index-footer">© 恶搞之家小游戏合集</div>
+        <div class="index-footer">© Family Guy 恶搞之家 小游戏合集</div>
     </div>
 
-    <audio id="bgMusic" src="mp3/gigisong.mp3" loop></audio>
+    <audio id="bgMusic" src="mp3/gigisong.mp3" loop>
     <div class="custom-alert" id="customAlert"></div>
 
     <script>
-        // 随机角色图片
+        // 角色头像
         const charIcons = [
             "images/Stewie.png",
             "images/Quagmire.png",
@@ -165,41 +165,41 @@
             "images/Bonnie.png"
         ];
 
-        // ====================== 你最新的游戏列表（已按拼音排序）======================
+        // 最新修正游戏列表（按 A-Z 排序）
         const gameList = [
-            { name: "2048", path: "2048.html" },
-            { name: "俄罗斯方块", path: "24/tetris.html" },
-            { name: "黑白棋", path: "reversi.html" },
-            { name: "华容道", path: "huarongdao2/huarongdao2.html" },
-            { name: "汉诺塔", path: "hnt.html" },
-            { name: "画线接球", path: "drawball.html" },
-            { name: "井字棋", path: "tic.html" },
-            { name: "连连看", path: "lianliankan.html" },
-            { name: "记忆方块", path: "memory.html" },
-            { name: "像素小鸟", path: "flappybird.html" },
-            { name: "像素飞机", path: "66/index.html" },
-            { name: "扫雷", path: "saolei.html" },
-            { name: "扫雷2", path: "44/index.html" },
-            { name: "数字华容道", path: "huarongdao.html" },
-            { name: "速算24点", path: "24.html" },
-            { name: "贪吃蛇", path: "snake.html" },
-            { name: "熊出没", path: "56/index.html" },
-            { name: "消消乐", path: "xiaoxiaole.html" },
-            { name: "找不同", path: "43/zhaobutong.html" },
-            { name: "切切切", path: "68/qqq.html" },
-            { name: "一个都不能", path: "2/ygdbns.html" },
-            { name: "五子棋", path: "gomoku.html" },
-            { name: "打砖块", path: "brick.html" },
-            { name: "魔方", path: "5/mofang.html" },
-            { name: "吃苍蝇", path: "6/chicangying.html" }
+            { name: "2048", path: "2048.html", desc: "合成Family Guy角色，解锁恶搞名场面" },
+            { name: "吃豆人", path: "22/index.html", desc: "经典吃豆玩法，躲避追击吃满豆子" },
+            { name: "吃苍蝇", path: "6/chicangying.html", desc: "趣味魔性玩法，吃掉更多苍蝇" },
+            { name: "打砖块", path: "brick.html", desc: "弹球击碎砖块，清空全场" },
+            { name: "俄罗斯方块", path: "4/index.html", desc: "经典方块下落，填满整行轻松消除" },
+            { name: "画线接球", path: "drawball.html", desc: "画出神奇路线，引导小球顺利进洞" },
+            { name: "黑白棋", path: "reversi.html", desc: "翻转棋子占领棋盘，脑力策略大对决" },
+            { name: "华容道", path: "1/huarongdao2.html", desc: "滑动角色逃出迷宫，传统益智挑战" },
+            { name: "汉诺塔", path: "hnt.html", desc: "圆盘层层挪移，考验逻辑思维" },
+            { name: "记忆方块", path: "memory.html", desc: "记住角色位置，翻开全部配对成功" },
+            { name: "井字棋", path: "tic.html", desc: "三子连成一线，轻松休闲随时玩" },
+            { name: "连连看", path: "lianliankan.html", desc: "快速匹配相同角色，眼力与手速大考验" },
+            { name: "魔方", path: "5/mufang.html", desc: "旋转还原魔方，挑战空间想象力" },
+            { name: "像素小鸟", path: "flappybird.html", desc: "操控小鸟穿越管道，挑战极限高分" },
+            { name: "扫雷", path: "saolei.html", desc: "避开所有地雷，清空格子安全通关" },
+            { name: "数字华容道", path: "huarongdao.html", desc: "滑动数字归位，还原完整顺序" },
+            { name: "速算24点", path: "24.html", desc: "四个数字巧组合，算出24点即获胜" },
+            { name: "坦克大战", path: "52/index.html", desc: "驾驶坦克激战，摧毁敌方基地" },
+            { name: "推箱子", path: "0/txz.html", desc: "推动箱子到指定位置，益智闯关" },
+            { name: "消消乐", path: "80/index.html", desc: "交换消除，解压好玩停不下来" },
+            { name: "切方块", path: "8/qqq.html", desc: "疯狂切割方块，释放所有压力" },
+            { name: "一个都不能死", path: "2/ygdbns.html", desc: "全员同步跑酷，一个都不能掉队" },
+            { name: "五子棋", path: "gomoku.html", desc: "连成五子即可获胜，经典对弈" },
+            { name: "贪吃蛇", path: "snake.html", desc: "操控角色吃金币，越长越厉害" },
+            { name: "找不同", path: "3/zhaobutong.html", desc: "擦亮双眼，找出两张图的细微差别" }
         ];
 
-        // 随机图片
+        // 随机头像
         function getRandIcon() {
             return charIcons[Math.floor(Math.random() * charIcons.length)];
         }
 
-        // 渲染游戏列表
+        // 渲染列表
         const listEl = document.getElementById("gameList");
         gameList.forEach(game => {
             const item = document.createElement("div");
@@ -209,7 +209,7 @@
                 <div class="game-icon" style="background-image: url('${getRandIcon()}')"></div>
                 <div class="game-info">
                     <div class="game-name">${game.name}</div>
-                    <div class="game-desc">恶搞之家趣味小游戏</div>
+                    <div class="game-desc">${game.desc}</div>
                 </div>
             `;
             listEl.appendChild(item);
@@ -219,16 +219,17 @@
         const logos = ["images/logo.png", "images/logo1.png", "images/logo2.png"];
         document.getElementById("randomLogo").style.backgroundImage = `url(${logos[Math.floor(Math.random()*logos.length)]})`;
 
-        // 背景音乐
+        // 音乐
         const bgMusic = document.getElementById("bgMusic");
-        document.addEventListener("DOMContentLoaded", () => {
-            bgMusic.play().catch(() => {});
-        });
         document.getElementById("randomLogo").onclick = () => {
-            bgMusic.paused ? bgMusic.play() : bgMusic.pause();
+            if (bgMusic.paused) {
+                bgMusic.play();
+            } else {
+                bgMusic.pause();
+            }
         };
 
-        // 游戏跳转
+        // 跳转
         function startGame(gameName) {
             const gameMap = {};
             gameList.forEach(g => gameMap[g.name] = g.path);
@@ -236,7 +237,7 @@
             setTimeout(() => { window.location.href = gameMap[gameName]; }, 1000);
         }
 
-        // 提示框
+        // 提示
         function showAlert(text) {
             const alertEl = document.getElementById("customAlert");
             alertEl.innerText = text;
