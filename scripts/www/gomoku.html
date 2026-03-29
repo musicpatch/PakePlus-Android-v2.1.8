@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>五子棋 - 音效震动版</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "微软雅黑", sans-serif;
+        }
+
+        body {
+            background: #f0e6d2;
+            display: flex;
+            justify-content: center;
+        }
+
+        .wrap {
+            width: 100vw;
+            height: calc(100vw * 16 / 9);
+            max-width: 450px;
+            max-height: 800px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 0;
+            gap: 10px;
+        }
+
+        .top {
+            width: 90%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .player {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+
+        .avatar {
+            width: 46px;
+            height: 46px;
+            border-radius: 50%;
+            border: 2px solid #d4b886;
+            background-size: cover;
+            background-position: center;
+        }
+
+        .info {
+            white-space: nowrap;
+        }
+
+        .name {
+            font-size: 15px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .side {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .vs {
+            font-size: 26px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .tip {
+            font-size: 15px;
+            font-weight: bold;
+            background: rgba(255,255,255,0.6);
+            padding: 5px 14px;
+            border-radius: 8px;
+            white-space: nowrap;
+        }
+
+        /* 棋盘外框 */
+        .board {
+            width: 90%;
+            aspect-ratio: 1/1;
+            background: #f5e7c8;
+            border: 1px solid #b39676;
+            position: relative;
+            opacity: 0.6; /* 未开始时半透明 */
+            pointer-events: none; /* 未开始时禁止点击 */
+        }
+
+        .board.active {
+            opacity: 1; /* 开始后正常显示 */
+            pointer-events: auto; /* 开始后允许点击 */
+        }
+
+        /* 线条：保证绝对整齐 */
+        .line-h, .line-v {
+            position: absolute;
+            background: #b39676;
+        }
+        .line-h {
+            width: 100%;
+            height: 1px;
+        }
+        .line-v {
+            width: 1px;
+            height: 100%;
+        }
+
+        /* 星点 */
+        .dot {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #997a5b;
+            transform: translate(-50%, -50%);
+        }
+
+        /* 落子点：点击区域 */
+        .point {
+            position: absolute;
+            width: 10%;
+            height: 10%;
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* 棋子 */
+        .stone {
+            width: 70%;
+            height: 70%;
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .white {
+            background: radial-gradient(circle at 30% 30%, #fff, #eee);
+            border: 1px solid #ccc;
+        }
+        .black {
+            background: radial-gradient(circle at 30% 30%, #444, #111);
+            border: 1px solid #000;
+        }
+
+        /* 落子震动动画 */
+        @keyframes shake {
+            0%  { transform: translate(-50%, -50%) scale(1); }
+            20% { transform: translate(-50%, -50%) scale(1.08); }
+            40% { transform: translate(-50%, -50%) scale(1); }
+            60% { transform: translate(-50%, -50%) scale(1.05); }
+            80% { transform: translate(-50%, -50%) scale(1); }
+            100%{ transform: translate(-50%, -50%) scale(1); }
+        }
+        .shake {
+            animation: shake 0.35s ease-in-out;
+        }
+
+        .bottom {
+            width: 90%;
+            display: flex;
+            gap: 10px;
+        }
+        .btn {
+            flex: 1;
+            padding: 10px;
+            border-radius: 10px;
+            border: none;
+            background: rgba(255,255,255,0.7);
+            font-size: 15px;
+            font-weight: bold;
+        }
+        .btn:active {
+            transform: scale(0.97);
+        }
+        .btn.start {
+            background: #d4b886;
+            color: #fff;
+        }
+        .btn:disabled {
+            background: #ccc;
+            color: #999;
+            cursor: not-allowed;
+        }
+
+        .alert {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.7);
+            color: #fff;
+            padding: 14px 24px;
+            border-radius: 10px;
+            display: none;
+        }
+
+        /* 头像选择面板 */
+        .avatar-modal {
+            position: fixed;
+            top:0;left:0;right:0;bottom:0;
+            background: rgba(0,0,0,0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        .avatar-list {
+            background: #fff;
+            padding: 15px;
+            border-radius: 12px;
+            display: grid;
+            grid-template-columns: repeat(4, 60px);
+            gap: 10px;
+        }
+        .avatar-item {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background-size: cover;
+            background-position: center;
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+        .avatar-item:hover { border-color: #666; }
+
+        /* AI难度选择面板 */
+        .ai-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #fff;
+            padding: 20px;
+            border-radius: 12px;
+            z-index: 101;
+            display: none;
+        }
+        .ai-option {
+            padding: 10px 20px;
+            margin: 8px 0;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: center;
+        }
+        .ai-option:hover {
+            background: #f5f5f5;
+        }
+        .modal-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        /* 开局提示 */
+        .start-tip {
+            font-size: 14px;
+            color: #4ecdc4;
+            margin: 5px 0;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <div class="top">
+            <!-- 玩家一 -->
+            <div class="player" id="player1">
+                <div class="avatar" id="avatar1" title="点击更换人物"></div>
+                <div class="info">
+                    <div class="name" id="name1">白方(Peter)</div>
+                    <div class="side" id="aiTag1">人对人</div>
+                </div>
+            </div>
+            <div class="vs">VS</div>
+            <!-- 玩家二 -->
+            <div class="player" id="player2">
+                <div class="info">
+                    <div class="name" id="name2">黑方(Stewie)</div>
+                    <div class="side" id="aiTag2">人对人</div>
+                </div>
+                <div class="avatar" id="avatar2" title="点击更换人物"></div>
+            </div>
+        </div>
+
+        <div class="start-tip" id="startTip">默认人对人模式，点击开始游戏（可更换人物/模式）</div>
+        <div class="tip" id="tipText" style="display: none;">无禁手 · 白方回合</div>
+
+        <div class="board" id="board"></div>
+
+        <div class="bottom">
+            <button class="btn" id="undo" disabled>悔棋</button>
+            <button class="btn start" id="startBtn">开始游戏</button>
+            <button class="btn" id="back">返回大厅</button>
+        </div>
+    </div>
+
+    <div class="alert" id="alert"></div>
+
+    <!-- 头像选择面板 -->
+    <div class="avatar-modal" id="avatarModal">
+        <div class="avatar-list" id="avatarList"></div>
+    </div>
+
+    <!-- AI难度选择面板 -->
+    <div class="ai-modal" id="aiModal">
+        <div class="modal-title">选择对战模式</div>
+        <div class="ai-option" data-diff="human">真人玩家</div>
+        <div class="ai-option" data-diff="easy">简单AI</div>
+        <div class="ai-option" data-diff="medium">中等AI</div>
+        <div class="ai-option" data-diff="hard">困难AI</div>
+    </div>
+
+    <!-- 加载独立AI逻辑文件 -->
+    <script src="js/ai-logic.js"></script>
+
+    <script>
+        // ================= 音效系统 =================
+        const clickSound = new Audio('./audio/click.mp3');
+        clickSound.load();
+        // ===========================================
+
+        const board = document.getElementById('board');
+        const tipText = document.getElementById('tipText');
+        const startTip = document.getElementById('startTip');
+        const alertBox = document.getElementById('alert');
+        const avatarModal = document.getElementById('avatarModal');
+        const avatarList = document.getElementById('avatarList');
+        const aiModal = document.getElementById('aiModal');
+        const startBtn = document.getElementById('startBtn');
+        const undoBtn = document.getElementById('undo');
+        const SIZE = 15;
+
+        let data = Array(SIZE).fill().map(()=>Array(SIZE).fill(0));
+        let turn = 1; // 1白 2黑
+        let gameOver = false;
+        let history = [];
+        let currentSelectPlayer = 1; // 当前选择的玩家（用于头像/AI选择）
+        let gameStarted = false; // 游戏是否已开始
+
+        // 16个角色头像（你提供的完整列表）
+        const avatarConfig = [
+            { key:"Stewie",       url:"images/Stewie.png" },
+            { key:"Quagmire",     url:"images/Quagmire.png" },
+            { key:"Peter",        url:"images/Peter.png" },
+            { key:"Mort",         url:"images/Mort.png" },
+            { key:"Meg",          url:"images/Meg.png" },
+            { key:"Lois",         url:"images/Lois.png" },
+            { key:"Joe",          url:"images/Joe.png" },
+            { key:"Jillian",      url:"images/Jillian.png" },
+            { key:"Herbert",      url:"images/Herbert.png" },
+            { key:"MortGoldman",  url:"images/MortGoldman.png" },
+            { key:"EvilMonkey",   url:"images/EvilMonkey.png" },
+            { key:"Cleveland",    url:"images/Cleveland.png" },
+            { key:"Chris",        url:"images/Chris.png" },
+            { key:"Carter",       url:"images/Carter.png" },
+            { key:"Brian",        url:"images/Brian.png" },
+            { key:"Bonnie",       url:"images/Bonnie.png" }
+        ];
+
+        // 玩家配置（默认：Peter vs Stewie，人对人模式）
+        let players = {
+            1: { 
+                type: 'human', 
+                avatar: avatarConfig.find(item => item.key === 'Peter').url, 
+                name: '白方', 
+                diff: '人对人' 
+            },
+            2: { 
+                type: 'human', 
+                avatar: avatarConfig.find(item => item.key === 'Stewie').url, 
+                name: '黑方', 
+                diff: '人对人' 
+            }
+        };
+
+        // ================= 初始化 =================
+        initBoard();
+        initAvatars();
+        setDefaultAvatars(); // 设置默认头像
+        bindEvents();
+        checkStartCondition(); // 初始已满足开始条件
+
+        // ================= 绘制棋盘（仅渲染，不允许落子） =================
+        function initBoard(){
+            board.innerHTML = '';
+            data = Array(SIZE).fill().map(()=>Array(SIZE).fill(0));
+            turn = 1;
+            gameOver = false;
+            history = [];
+
+            // 画横线15条
+            for(let i=0; i<SIZE; i++){
+                const h = document.createElement('div');
+                h.className = 'line-h';
+                h.style.top = (i/(SIZE-1)*100) + '%';
+                board.appendChild(h);
+            }
+            // 画竖线15条
+            for(let j=0; j<SIZE; j++){
+                const v = document.createElement('div');
+                v.className = 'line-v';
+                v.style.left = (j/(SIZE-1)*100) + '%';
+                board.appendChild(v);
+            }
+
+            // 星点
+            const dots = [[3,3],[3,11],[11,3],[11,11],[7,7]];
+            dots.forEach(([r,c])=>{
+                const d = document.createElement('div');
+                d.className = 'dot';
+                d.style.top = r/(SIZE-1)*100 + '%';
+                d.style.left = c/(SIZE-1)*100 + '%';
+                board.appendChild(d);
+            });
+
+            // 落子点（精准定位交叉点）
+            for(let r=0; r<SIZE; r++){
+                for(let c=0; c<SIZE; c++){
+                    const p = document.createElement('div');
+                    p.className = 'point';
+                    p.dataset.r = r;
+                    p.dataset.c = c;
+                    p.onclick = clickPoint;
+                    p.style.top = r/(SIZE-1)*100 + '%';
+                    p.style.left = c/(SIZE-1)*100 + '%';
+                    board.appendChild(p);
+                }
+            }
+
+            updatePlayerDisplay();
+        }
+
+        // ================= 设置默认头像 =================
+        function setDefaultAvatars(){
+            document.getElementById('avatar1').style.backgroundImage = `url('${players[1].avatar}')`;
+            document.getElementById('avatar2').style.backgroundImage = `url('${players[2].avatar}')`;
+        }
+
+        // ================= 初始化头像选择列表 =================
+        function initAvatars(){
+            // 生成头像选择列表
+            avatarConfig.forEach(avatar => {
+                const item = document.createElement('div');
+                item.className = 'avatar-item';
+                item.style.backgroundImage = `url('${avatar.url}')`;
+                item.dataset.url = avatar.url;
+                item.dataset.key = avatar.key;
+                item.onclick = selectAvatar;
+                avatarList.appendChild(item);
+            });
+        }
+
+        // ================= 绑定事件 =================
+        function bindEvents(){
+            // 头像点击事件（更换人物）
+            document.getElementById('avatar1').onclick = ()=>{
+                if(gameStarted) return; // 游戏开始后不可更改
+                currentSelectPlayer = 1;
+                avatarModal.style.display = 'flex';
+            };
+            document.getElementById('avatar2').onclick = ()=>{
+                if(gameStarted) return; // 游戏开始后不可更改
+                currentSelectPlayer = 2;
+                avatarModal.style.display = 'flex';
+            };
+
+            // 玩家区域点击事件（更换对战模式）
+            document.getElementById('player1').onclick = (e)=>{
+                if(gameStarted || e.target === document.getElementById('avatar1')) return;
+                currentSelectPlayer = 1;
+                aiModal.style.display = 'block';
+            };
+            document.getElementById('player2').onclick = (e)=>{
+                if(gameStarted || e.target === document.getElementById('avatar2')) return;
+                currentSelectPlayer = 2;
+                aiModal.style.display = 'block';
+            };
+
+            // AI难度选择事件
+            document.querySelectorAll('.ai-option').forEach(option => {
+                option.onclick = function(){
+                    const diff = this.dataset.diff;
+                    players[currentSelectPlayer].type = diff === 'human' ? 'human' : 'ai';
+                    players[currentSelectPlayer].diff = diff === 'human' ? '人对人' : 
+                                                      diff === 'easy' ? '简单AI' :
+                                                      diff === 'medium' ? '中等AI' : '困难AI';
+                    aiModal.style.display = 'none';
+                    updatePlayerDisplay();
+                    checkStartCondition();
+                };
+            });
+
+            // 关闭弹窗（点击空白处）
+            avatarModal.onclick = (e)=>{
+                if(e.target === avatarModal) avatarModal.style.display = 'none';
+            };
+            aiModal.onclick = (e)=>{
+                if(e.target === aiModal) aiModal.style.display = 'none';
+            };
+
+            // 开始游戏按钮
+            startBtn.onclick = ()=>{
+                if(gameStarted){
+                    // 重新开始：重置为默认状态
+                    players = {
+                        1: { 
+                            type: 'human', 
+                            avatar: avatarConfig.find(item => item.key === 'Peter').url, 
+                            name: '白方', 
+                            diff: '人对人' 
+                        },
+                        2: { 
+                            type: 'human', 
+                            avatar: avatarConfig.find(item => item.key === 'Stewie').url, 
+                            name: '黑方', 
+                            diff: '人对人' 
+                        }
+                    };
+                    setDefaultAvatars();
+                    updatePlayerDisplay();
+                    initBoard();
+                    gameStarted = false;
+                    board.classList.remove('active');
+                    startTip.style.display = 'block';
+                    tipText.style.display = 'none';
+                    startBtn.textContent = '开始游戏';
+                    undoBtn.disabled = true;
+                    checkStartCondition();
+                    return;
+                }
+                // 首次开始
+                gameStarted = true;
+                board.classList.add('active');
+                startTip.style.display = 'none';
+                tipText.style.display = 'block';
+                tipText.textContent = '无禁手 · 白方回合';
+                startBtn.textContent = '重新开始';
+                undoBtn.disabled = false;
+            };
+
+            // 悔棋
+            document.getElementById('undo').onclick = ()=>{
+                if(history.length===0 || gameOver) return;
+                const last = history.pop();
+                data[last.r][last.c] = 0;
+                last.p.innerHTML = '';
+                turn = turn===1?2:1;
+                gameOver = false;
+                tipText.textContent = `无禁手 · ${turn===1 ? '白方' : '黑方'}回合`;
+            };
+
+            // 返回大厅
+            document.getElementById('back').onclick = ()=>{
+                location.href = 'index.html';
+            };
+        }
+
+        // ================= 选择头像 =================
+        function selectAvatar(e){
+            const avatarUrl = e.target.dataset.url;
+            const avatarKey = e.target.dataset.key;
+            players[currentSelectPlayer].avatar = avatarUrl;
+            players[currentSelectPlayer].diff = players[currentSelectPlayer].type === 'human' ? '人对人' : players[currentSelectPlayer].diff;
+            
+            document.getElementById(`avatar${currentSelectPlayer}`).style.backgroundImage = `url('${avatarUrl}')`;
+            avatarModal.style.display = 'none';
+            updatePlayerDisplay();
+            checkStartCondition();
+        }
+
+        // ================= 更新玩家显示 =================
+        function updatePlayerDisplay(){
+            const avatar1Key = avatarConfig.find(item => item.url === players[1].avatar)?.key || 'Peter';
+            const avatar2Key = avatarConfig.find(item => item.url === players[2].avatar)?.key || 'Stewie';
+            
+            document.getElementById('name1').textContent = `白方(${avatar1Key})`;
+            document.getElementById('name2').textContent = `黑方(${avatar2Key})`;
+            document.getElementById('aiTag1').textContent = players[1].diff;
+            document.getElementById('aiTag2').textContent = players[2].diff;
+        }
+
+        // ================= 检查是否满足开始条件 =================
+        function checkStartCondition(){
+            // 默认已满足，始终启用开始按钮
+            startBtn.disabled = false;
+        }
+
+        // ================= 落子逻辑（仅游戏开始后生效） =================
+        function clickPoint(e){
+            if(!gameStarted || gameOver) return;
+            const p = e.currentTarget;
+            const r = +p.dataset.r;
+            const c = +p.dataset.c;
+
+            if(data[r][c] !== 0) return;
+
+            // 落子
+            data[r][c] = turn;
+            const stone = document.createElement('div');
+            stone.className = `stone ${turn===1 ? 'white' : 'black'}`;
+            p.appendChild(stone);
+            history.push({p, r, c});
+
+            // 音效 + 震动
+            clickSound.currentTime = 0;
+            clickSound.play().catch(()=>{});
+            p.classList.add('shake');
+            setTimeout(()=>p.classList.remove('shake'), 350);
+
+            // 判断胜利
+            if(checkWin(r,c,turn)){
+                gameOver = true;
+                showAlert(turn===1 ? '白方获胜！' : '黑方获胜！');
+                tipText.textContent = '游戏结束';
+                return;
+            }
+
+            // 换回合
+            turn = turn===1 ? 2 : 1;
+            tipText.textContent = `无禁手 · ${turn===1 ? '白方' : '黑方'}回合`;
+
+            // AI回合
+            if(!gameOver && players[turn].type === 'ai'){
+                setTimeout(()=>{
+                    const diff = players[turn].diff === '简单AI' ? 'easy' :
+                                players[turn].diff === '中等AI' ? 'medium' : 'hard';
+                    const move = aiThink(data, turn, diff, SIZE);
+                    if(move){
+                        const [rr, cc] = move;
+                        const target = document.querySelector(`.point[data-r="${rr}"][data-c="${cc}"]`);
+                        if(target) target.click();
+                    }
+                }, 500);
+            }
+        }
+
+        // ================= 判赢 =================
+        function checkWin(r,c,col){
+            const dirs = [
+                [[0,1],[0,-1]],
+                [[1,0],[-1,0]],
+                [[1,1],[-1,-1]],
+                [[1,-1],[-1,1]]
+            ];
+            for(const [a,b] of dirs){
+                let cnt = 1;
+                let nr=r+a[0], nc=c+a[1];
+                while(nr>=0&&nr<SIZE&&nc>=0&&nc<SIZE&&data[nr][nc]===col){cnt++;nr+=a[0];nc+=a[1];}
+                nr=r+b[0], nc=c+b[1];
+                while(nr>=0&&nr<SIZE&&nc>=0&&nc<SIZE&&data[nr][nc]===col){cnt++;nr+=b[0];nc+=b[1];}
+                if(cnt>=5) return true;
+            }
+            return false;
+        }
+
+        // ================= 提示框 =================
+        function showAlert(text){
+            alertBox.textContent = text;
+            alertBox.style.display = 'block';
+            setTimeout(()=>alertBox.style.display='none',1500);
+        }
+        window.addEventListener('pagehide', function() {
+  document.removeEventListener('keydown', window.keyListener);
+});
+
+    </script>
+</body>
+</html>
