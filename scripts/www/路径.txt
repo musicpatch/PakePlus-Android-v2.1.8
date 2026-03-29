@@ -1,0 +1,28 @@
+游戏名称	对应路径
+
+
+连连看	lianliankan.html
+记忆方块	memory.html
+数字华容道	huarongdao.html
+扫雷	saolei.html
+消消乐	xiaoxiaole.html
+贪吃蛇	snake.html
+2048	2048.html
+黑白棋	reversi.html
+五子棋	gomoku.html
+打砖块	brick.html
+井字棋	tic.html
+速算 24 点	24.html
+像素小鸟	flappybird.html
+画线接球	drawball.html
+汉诺塔	hnt.html
+华容道	huarongdao2/huarongdao2.html
+一个都不能	2/ygdbns.html
+魔方	                5/mofang.html
+吃苍蝇                       6/chicangying.html
+俄罗斯方块                           24/tetris.html
+找不同                           43/zhaobutong.html
+扫雷2                       44/index.html
+熊出没                     56/index.html
+像素飞机                  66/index.html
+切切切	               68/qqq.html
