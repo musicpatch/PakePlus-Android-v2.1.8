@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+<title>恶搞之家 连连看</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;}
+body{
+  background:#f8f9ff;
+  display:flex;flex-direction:column;align-items:center;
+  padding:4px;font-family:sans-serif;
+}
+.top-bar{
+  width:100%;max-width:380px;
+  display:flex;justify-content:space-between;align-items:center;
+  padding:9px 14px;
+  background:rgba(255,255,255,0.9);
+  border-radius:14px;margin-bottom:8px;
+  box-shadow:0 3px 10px rgba(180,210,255,0.2);
+  flex-shrink:0;
+}
+.top-bar .info{font-size:14px;font-weight:600;color:#555}
+.top-bar button{
+  padding:8px 11px;border:none;border-radius:10px;
+  background:#a8d1ff;color:#fff;font-size:13px;
+}
+.game-container{
+  position:relative;
+  width:100%;max-width:380px;
+}
+.game{
+  display:grid;
+  grid-template-columns:repeat(7, 1fr);
+  gap:3px;
+  padding:4px;
+  background:rgba(180,210,255,0.15);
+  border-radius:16px;
+  box-shadow:0 4px 12px rgba(180,210,255,0.15);
+  position:relative;z-index:1;
+}
+#linkCanvas{
+  position:absolute;top:0;left:0;
+  width:100%;height:100%;
+  pointer-events:none;z-index:2;
+}
+.block{
+  width:50px;height:50px;
+  background:#fff;border-radius:11px;
+  display:flex;align-items:center;justify-content:center;
+  overflow:hidden;border:2px solid transparent;
+  box-shadow:0 3px 6px rgba(0,0,0,0.08);
+  transition:all 0.25s ease;
+  position:relative;z-index:3;
+}
+.block img{width:68%;height:68%;object-fit:contain}
+.block.selected{border-color:#a8d1ff;background:#f0f7ff;box-shadow:0 0 0 2px #a8d1ff}
+.block.hidden{opacity:0;transform:scale(0.8);transition:all 0.3s}
+.modal{
+  position:fixed;top:0;left:0;width:100%;height:100%;
+  background:rgba(0,0,0,0.3);display:none;align-items:center;justify-content:center;z-index:9999;
+}
+.modal-box{background:#fff;padding:26px;border-radius:18px;text-align:center;min-width:240px;}
+.modal-box p{margin-bottom:16px;font-weight:600;font-size:15px;color:#555}
+.modal-box button{padding:10px 17px;background:#a8d1ff;color:white;border:none;border-radius:10px;}
+
+.bottom-logo{
+  width:100%;max-width:380px;
+  margin-top:10px;
+  text-align:center;
+}
+.bottom-logo img{
+  max-width:160px;
+  height:auto;
+}
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <div class="info">时间：<span id="time">90</span>s</div>
+  <div class="info">最高分：<span id="best">0</span></div>
+</div>
+<div class="top-bar">
+  <div class="info">分数：<span id="score">0</span></div>
+  <div>
+    <button onclick="restart()">重新开始</button>
+    <button onclick="goHome()">返回主页</button>
+  </div>
+</div>
+
+<div class="game-container">
+  <div class="game" id="game"></div>
+  <canvas id="linkCanvas"></canvas>
+</div>
+
+<div class="bottom-logo">
+  <img src="images/logo2.png" alt="logo">
+</div>
+
+<div class="modal" id="winModal">
+  <div class="modal-box">
+    <p id="winText">🎉 恭喜通关！</p>
+    <button onclick="restart()">再来一局</button>
+  </div>
+</div>
+<div class="modal" id="loseModal">
+  <div class="modal-box">
+    <p>⏰ 时间到挑战失败</p>
+    <button onclick="restart()">重新挑战</button>
+  </div>
+</div>
+
+<audio id="selectSound" src="2046/slide.mp3" preload="auto">
+<audio id="mergeSound" src="2046/merge.mp3" preload="auto">
+<audio id="winSound" src="2046/winner.mp3" preload="auto">
+<audio id="loseSound" src="2046/lose.mp3" preload="auto">
+
+<script>
+const gameEl = document.getElementById('game');
+const timeEl = document.getElementById('time');
+const scoreEl = document.getElementById('score');
+const bestEl = document.getElementById('best');
+const winModal = document.getElementById('winModal');
+const winText = document.getElementById('winText');
+const canvas = document.getElementById('linkCanvas');
+const ctx = canvas.getContext('2d');
+
+// 固定9个人物
+const fixedIcons = [
+  'images/Peter.png',
+  'images/Lois.png',
+  'images/Chris.png',
+  'images/Meg.png',
+  'images/Stewie.png',
+  'images/Brian.png',
+  'images/Quagmire.png',
+  'images/Cleveland.png',
+  'images/Joe.png'
+];
+
+// 你原版棋盘：8行7列
+const ROW = 8;
+const COL = 7;
+
+const BLOCK = 50;
+const GAP = 3;
+const PAD = 4;
+const HALF = BLOCK / 2;
+
+let timeLeft = 90;
+let timer = null;
+let map = [];
+let selected = null;
+let score = 0;
+let best = +localStorage.getItem('llk_best') || 0;
+bestEl.textContent = best;
+
+function resizeCanvas(){
+  const r=gameEl.getBoundingClientRect();
+  canvas.width=r.width;
+  canvas.height=r.height;
+}
+
+function getBlockEdge(y, x, ty, tx){
+  const cx = PAD + x*(BLOCK+GAP) + HALF;
+  const cy = PAD + y*(BLOCK+GAP) + HALF;
+  const dx = tx - x;
+  const dy = ty - y;
+  if(Math.abs(dx) > Math.abs(dy)){
+    return {x: cx + (dx>0 ? HALF : -HALF), y: cy};
+  }else{
+    return {x: cx, y: cy + (dy>0 ? HALF : -HALF)};
+  }
+}
+
+function drawLink(y1,x1,y2,x2,path){
+  if(Math.abs(y1-y2)+Math.abs(x1-x2) <= 1) return;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.strokeStyle='#a8d1ff';
+  ctx.lineWidth=5;
+  ctx.lineCap='round';
+  ctx.lineJoin='round';
+  ctx.globalAlpha=0.9;
+
+  const s=getBlockEdge(y1,x1,y2,x2);
+  const e=getBlockEdge(y2,x2,y1,x1);
+
+  if(path.length===0){
+    ctx.beginPath(); ctx.moveTo(s.x,s.y); ctx.lineTo(e.x,e.y); ctx.stroke();
+  }else if(path.length===1){
+    const m=path[0];
+    const ms=getBlockEdge(m.r,m.c,y1,x1);
+    ctx.beginPath(); ctx.moveTo(s.x,s.y); ctx.lineTo(ms.x,ms.y); ctx.lineTo(e.x,e.y); ctx.stroke();
+  }else{
+    const m1=path[0],m2=path[1];
+    const ms1=getBlockEdge(m1.r,m1.c,y1,x1);
+    const me2=getBlockEdge(m2.r,m2.c,y2,x2);
+    ctx.beginPath();
+    ctx.moveTo(s.x,s.y); ctx.lineTo(ms1.x,ms1.y);
+    ctx.lineTo(me2.x,me2.y); ctx.lineTo(e.x,e.y);
+    ctx.stroke();
+  }
+
+  setTimeout(()=>{
+    let a=0.9;
+    const iv=setInterval(()=>{
+      a-=0.1; ctx.globalAlpha=a; ctx.clearRect(0,0,canvas.width,canvas.height);
+      if(a<=0){
+        clearInterval(iv);
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+      }else{
+        if(path.length===0){
+          ctx.beginPath();ctx.moveTo(s.x,s.y);ctx.lineTo(e.x,e.y);ctx.stroke();
+        }else if(path.length===1){
+          const m=path[0];
+          const ms=getBlockEdge(m.r,m.c,y1,x1);
+          ctx.beginPath();ctx.moveTo(s.x,s.y);ctx.lineTo(ms.x,ms.y);ctx.lineTo(e.x,e.y);ctx.stroke();
+        }else{
+          const m1=path[0],m2=path[1];
+          const ms1=getBlockEdge(m1.r,m1.c,y1,x1);
+          const me2=getBlockEdge(m2.r,m2.c,y2,x2);
+          ctx.beginPath();
+          ctx.moveTo(s.x,s.y);ctx.lineTo(ms1.x,ms1.y);
+          ctx.lineTo(me2.x,me2.y);ctx.lineTo(e.x,e.y);ctx.stroke();
+        }
+      }
+    },30);
+  },300);
+}
+
+function lineCheck(y1,x1,y2,x2){
+  if(y1===y2){
+    const a=Math.min(x1,x2),b=Math.max(x1,x2);
+    for(let x=a+1;x<b;x++) if(map[y1][x]) return false;
+    return true;
+  }
+  if(x1===x2){
+    const a=Math.min(y1,y2),b=Math.max(y1,y2);
+    for(let y=a+1;y<b;y++) if(map[y][x1]) return false;
+    return true;
+  }
+  return false;
+}
+
+function canLink(y1,x1,y2,x2){
+  if(map[y1][x1]!==map[y2][x2]) return {ok:false,path:[]};
+  if(lineCheck(y1,x1,y2,x2)) return {ok:true,path:[]};
+
+  for(let x=0;x<COL;x++)
+    if(!map[y1][x]&&lineCheck(y1,x1,y1,x)&&lineCheck(y1,x,y2,x2))
+      return {ok:true,path:[{r:y1,c:x}]};
+
+  for(let y=0;y<ROW;y++)
+    if(!map[y][x1]&&lineCheck(y1,x1,y,x1)&&lineCheck(y,x1,y2,x2))
+      return {ok:true,path:[{r:y,c:x1}]};
+
+  for(let y=0;y<ROW;y++){
+    for(let x=0;x<COL;x++){
+      if(!map[y][x1]&&!map[y][x]&&lineCheck(y1,x1,y,x1)&&lineCheck(y,x1,y,x)&&lineCheck(y,x,y2,x2))
+        return {ok:true,path:[{r:y,c:x1},{r:y,c:x}]};
+      if(!map[y1][x]&&!map[y][x]&&lineCheck(y1,x1,y1,x)&&lineCheck(y1,x,y,x)&&lineCheck(y,x,y2,x2))
+        return {ok:true,path:[{r:y1,c:x},{r:y,c:x}]};
+    }
+  }
+  return {ok:false,path:[]};
+}
+
+function isAllClear(){
+  return map.every(row=>row.every(cell=>!cell));
+}
+
+function playSound(aud){
+  try{aud.currentTime=0;aud.play().catch(()=>{});}catch(e){}
+}
+
+// 初始化：固定9个人物，自动凑偶数填满8×7
+function init(){
+  winModal.style.display = 'none';
+  loseModal.style.display = 'none';
+  resizeCanvas();
+  clearInterval(timer);
+  selected = null;
+  timeLeft = 90;
+  score = 0;
+  timeEl.textContent = timeLeft;
+  scoreEl.textContent = score;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  const total = ROW * COL;
+  const list = [];
+
+  while (list.length < total) {
+    list.push(...fixedIcons);
+  }
+  list.length = total;
+
+  const pairList = [];
+  list.forEach(img => {
+    pairList.push(img);
+    pairList.push(img);
+  });
+  pairList.length = total;
+
+  for (let i = pairList.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pairList[i], pairList[j]] = [pairList[j], pairList[i]];
+  }
+
+  map = [];
+  for (let y = 0; y < ROW; y++) {
+    const row = [];
+    for (let x = 0; x < COL; x++) {
+      row.push(pairList.shift());
+    }
+    map.push(row);
+  }
+
+  render();
+  startTimer();
+}
+
+function render(){
+  gameEl.innerHTML = '';
+  for(let y=0;y<ROW;y++){
+    for(let x=0;x<COL;x++){
+      const d = document.createElement('div');
+      d.className = 'block';
+      d.dataset.y = y;
+      d.dataset.x = x;
+
+      if(map[y][x]){
+        const img = document.createElement('img');
+        img.src = map[y][x];
+        d.appendChild(img);
+      }
+
+      d.onclick = onClick;
+      gameEl.appendChild(d);
+    }
+  }
+}
+
+function startTimer(){
+  clearInterval(timer);
+  timer = setInterval(()=>{
+    timeLeft--;
+    timeEl.textContent = timeLeft;
+    if(timeLeft <= 0){
+      clearInterval(timer);
+      playSound(loseSound);
+      loseModal.style.display = 'flex';
+    }
+  },1000);
+}
+
+function onClick(e){
+  const el = e.currentTarget;
+  const y = +el.dataset.y;
+  const x = +el.dataset.x;
+
+  if(!map[y][x]) return;
+  playSound(selectSound);
+
+  if(!selected){
+    selected = {y,x,el};
+    el.classList.add('selected');
+    return;
+  }
+
+  const oy = selected.y;
+  const ox = selected.x;
+  const oel = selected.el;
+  oel.classList.remove('selected');
+  const oldSel = selected;
+  selected = null;
+
+  if(oy === y && ox === x) return;
+
+  const link = canLink(oy,ox,y,x);
+  if(!link.ok) return;
+
+  drawLink(oy,ox,y,x,link.path);
+  playSound(mergeSound);
+
+  setTimeout(()=>{
+    map[oy][ox] = null;
+    map[y][x] = null;
+    oel.classList.add('hidden');
+    el.classList.add('hidden');
+
+    score += 10;
+    scoreEl.textContent = score;
+    timeLeft = Math.min(timeLeft + 2, 120);
+    timeEl.textContent = timeLeft;
+
+    if(isAllClear()){
+      clearInterval(timer);
+      const base = score;
+      score += timeLeft;
+      scoreEl.textContent = score;
+
+      winText.innerHTML = `🎉 恭喜通关！<br>基础得分：${base} 分<br>时间奖励：${timeLeft} 分<br>总得分：${score} 分`;
+
+      playSound(winSound);
+      if(score > best){
+        best = score;
+        localStorage.setItem('llk_best', best);
+        bestEl.textContent = best;
+      }
+      setTimeout(()=>{ winModal.style.display = 'flex'; }, 500);
+      return;
+    }
+  }, 400);
+}
+
+function restart(){
+  winModal.style.display = 'none';
+  loseModal.style.display = 'none';
+  init();
+}
+
+function goHome(){
+  window.location.href = 'index.html';
+}
+
+window.addEventListener('resize', resizeCanvas);
+init();
+window.addEventListener('pagehide', function() {
+  document.removeEventListener('keydown', window.keyListener);
+});
+
+</script>
+</body>
+</html>
