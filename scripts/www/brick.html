@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>打砖块-完美最终版</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;user-select:none;-webkit-user-select:none;touch-action:none}
+html,body{overflow:hidden;height:100%;background:#f0f7ff}
+body{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  height:100vh;
+  padding:0;
+}
+.game{
+  width:100%;
+  max-width:360px;
+  height:96vh;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+.top-bar{
+  background:#e6f9ff;
+  padding:8px 12px;
+  border-radius:12px;
+  font-weight:bold;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+.item{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  background:#fff;
+  padding:4px 8px;
+  border-radius:8px;
+}
+.canvas-box{
+  flex:1;
+  background:#1a2022;
+  border-radius:14px;
+  overflow:hidden;
+}
+canvas{
+  width:100%;
+  height:100%;
+  display:block;
+}
+.ctrl-area{
+  height:60px;
+  background:#e6f9ff;
+  border-radius:16px;
+  position:relative;
+}
+.tip{
+  position:absolute;
+  top:50%;left:50%;
+  transform:translate(-50%,-50%);
+  font-size:12px;color:#888;
+}
+.game-over{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.6);
+  display:none;
+  justify-content:center;
+  align-items:center;
+  z-index:99;
+}
+.over-card{
+  background:#fff;
+  padding:30px;
+  border-radius:18px;
+  text-align:center;
+}
+.restart-btn{
+  margin-top:20px;
+  background:#81c784;
+  color:#fff;
+  border:none;
+  padding:12px 24px;
+  border-radius:10px;
+  font-size:16px;
+}
+</style>
+</head>
+<body>
+<div class="game">
+  <div class="top-bar">
+    <div>得分: <span id="score">0</span></div>
+    <div class="item">💣<span id="bomb">0</span></div>
+    <div class="item">❄️<span id="freeze">0</span></div>
+    <div class="item">⚡<span id="power">0</span></div>
+    <div>最高: <span id="best">0</span></div>
+  </div>
+  <div class="canvas-box"><canvas id="cvs"></canvas></div>
+  <div class="ctrl-area" id="ctrl">
+    <div class="tip">左右滑动移动 • 按住不动0.5秒开始蓄力</div>
+  </div>
+</div>
+
+<div class="game-over" id="overModal">
+  <div class="over-card">
+    <h2>游戏结束</h2>
+    <p>本次得分：<span id="fs"></span></p>
+    <p>最高得分：<span id="fb"></span></p>
+    <button class="restart-btn" id="restartBtn">再来一局</button>
+  </div>
+</div>
+
+<script>
+const cvs = document.getElementById('cvs');
+const ctx = cvs.getContext('2d');
+const scoreEl = document.getElementById('score');
+const bestEl = document.getElementById('best');
+const bombEl = document.getElementById('bomb');
+const freezeEl = document.getElementById('freeze');
+const powerEl = document.getElementById('power');
+const overModal = document.getElementById('overModal');
+const ctrl = document.getElementById('ctrl');
+
+cvs.width = 360;
+cvs.height = 530;
+const w = cvs.width, h = cvs.height;
+const SAFE_LINE = h - 80;
+
+let best = +localStorage.getItem('brickBest') || 0;
+bestEl.textContent = best;
+
+let gameOver = false;
+let score = 0;
+
+const pad = { w:70, h:10, x:w/2-35, y:h-20 };
+const ball = { x:w/2, y:h-60, r:6, vx:2.2, vy:-2.2, base:2.2 };
+
+const brickW = 36, brickH = 16, gap = 6;
+let bricks = [];
+let row = 0;
+let fallTimer = 0;
+let freezeEnd = 0;
+
+const MAX_POWER = 100;
+let power = 0;
+let holdStart = 0;
+let isHolding = false;
+
+let bomb = 0, freeze = 0;
+let explosions = [];
+let lastX = 0;
+let rafId = null;
+
+function randProp(){
+  const r = Math.random();
+  if(r < 0.02) return 'bomb';
+  if(r < 0.04) return 'freeze';
+  return null;
+}
+
+function randHp(row){
+  const r = Math.random();
+  if(row < 3) return r>0.85?2:1;
+  if(row < 6) return r>0.9?3:r>0.6?2:1;
+  return r>0.97?4:r>0.8?3:r>0.4?2:1;
+}
+
+function spawnRow(y, r){
+  const c = Math.floor((w-40)/(brickW+gap));
+  for(let i=0;i<c;i++){
+    bricks.push({
+      x:20+i*(brickW+gap), y,
+      w:brickW, h:brickH,
+      hp:randHp(r), prop:randProp()
+    });
+  }
+}
+
+function boom(){
+  const cx=w/2, cy=h/2;
+  for(let i=0;i<80;i++){
+    const a=Math.random()*Math.PI*2;
+    const s=Math.random()*5+3;
+    explosions.push({x:cx,y:cy,vx:Math.cos(a)*s,vy:Math.sin(a)*s,l:1});
+  }
+  bricks.forEach(b=>{
+    const dx=b.x+b.w/2-cx, dy=b.y+b.h/2-cy;
+    if(dx*dx+dy*dy < 120*120) b.hp=0;
+  });
+}
+
+function hitBrick(b){
+  const cx=Math.max(b.x,Math.min(ball.x,b.x+b.w));
+  const cy=Math.max(b.y,Math.min(ball.y,b.y+b.h));
+  const dx=ball.x-cx, dy=ball.y-cy;
+  if(dx*dx+dy*dy>ball.r*ball.r) return false;
+  Math.abs(dx)>Math.abs(dy) ? ball.vx*=-1 : ball.vy*=-1;
+  return true;
+}
+
+function updateUI(){
+  scoreEl.textContent = score;
+  bombEl.textContent = bomb;
+  freezeEl.textContent = freeze;
+  powerEl.textContent = Math.round(power);
+}
+
+function resetGame(){
+  cancelAnimationFrame(rafId);
+  gameOver = false;
+  score = power = bomb = freeze = 0;
+  freezeEnd = 0;
+  bricks = []; explosions = [];
+  row = 0; fallTimer = Date.now();
+  ball.x = w/2; ball.y = h-60;
+  ball.vx = 2.2; ball.vy = -2.2;
+  pad.x = w/2-35;
+  spawnRow(40,0);
+  spawnRow(40+brickH+gap,1);
+  row = 2;
+  updateUI();
+  overModal.style.display = 'none';
+  gameLoop();
+}
+
+function triggerGameOver(){
+  gameOver = true;
+  cancelAnimationFrame(rafId);
+  document.getElementById('fs').textContent = score;
+  if(score>best){ best=score; localStorage.setItem('brickBest',best); bestEl.textContent=best; }
+  document.getElementById('fb').textContent = best;
+  overModal.style.display = 'flex';
+}
+
+function gameLoop(){
+  if(gameOver) return;
+  rafId = requestAnimationFrame(gameLoop);
+  ctx.clearRect(0,0,w,h);
+
+  ctx.strokeStyle='#333'; ctx.setLineDash([5,5]);
+  ctx.beginPath(); ctx.moveTo(0,SAFE_LINE); ctx.lineTo(w,SAFE_LINE);
+  ctx.stroke(); ctx.setLineDash([]);
+
+  for(let i=explosions.length-1;i>=0;i--){
+    const e=explosions[i];
+    ctx.fillStyle=`rgba(255,160,0,${e.l})`;
+    ctx.beginPath(); ctx.arc(e.x,e.y,3,0,Math.PI*2); ctx.fill();
+    e.x+=e.vx; e.y+=e.vy; e.l-=0.02;
+    if(e.l<=0) explosions.splice(i,1);
+  }
+
+  const now = Date.now();
+
+  if(isHolding){
+    if(now - holdStart >= 500 && power < MAX_POWER){
+      power += 0.7;
+      updateUI();
+    }
+  }
+
+  ball.x += ball.vx;
+  ball.y += ball.vy;
+
+  if(ball.x < ball.r)       { ball.x=ball.r; ball.vx*=-1; }
+  if(ball.x > w-ball.r)     { ball.x=w-ball.r; ball.vx*=-1; }
+  if(ball.y < ball.r)       { ball.y=ball.r; ball.vy*=-1; }
+
+  // ====================== 核心强化：速度翻倍 ======================
+  if(ball.y+ball.r >= pad.y && ball.y <= pad.y+pad.h &&
+     ball.x >= pad.x && ball.x <= pad.x+pad.w && ball.vy > 0){
+    ball.vy = -ball.base;
+    // 原倍率 *2 → 满蓄力直接快一倍以上
+    const mul = 1 + (power/MAX_POWER) * 5.0;
+    ball.vy = -ball.base * mul;
+    ball.vx *= 1 + (power/MAX_POWER) * 2.0;
+    power = 0;
+    updateUI();
+  }
+
+  if(Math.abs(ball.vy) > ball.base+0.4) ball.vy *= 0.98;
+  if(Math.abs(ball.vx) > ball.base+0.3) ball.vx *= 0.985;
+
+  let hitOnce = false;
+  for(let i=0;i<bricks.length;i++){
+    const b=bricks[i];
+    if(b.hp<=0 || hitOnce) continue;
+    if(hitBrick(b)){
+      hitOnce = true;
+      b.hp--;
+      if(b.hp<=0){
+        score += 10;
+        updateUI();
+        if(b.prop==='bomb'){ bomb++; updateUI(); }
+        if(b.prop==='freeze'){ freeze++; updateUI(); }
+      }
+      break;
+    }
+  }
+  bricks = bricks.filter(b=>b.hp>0);
+
+  let c = '#64b5f6';
+  if(power > 0){
+    const p = power/MAX_POWER;
+    c = `rgb(${255}, ${Math.floor(200*(1-p))}, ${Math.floor(200*(1-p))})`;
+  }
+  if(power >= MAX_POWER) c = '#ff0000';
+  ctx.fillStyle = c;
+  ctx.fillRect(pad.x,pad.y,pad.w,pad.h);
+
+  ctx.beginPath();
+  ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI*2);
+  ctx.fillStyle='#fff';
+  ctx.fill();
+
+  bricks.forEach(b=>{
+    if(b.hp>=4) ctx.fillStyle='#222';
+    else if(b.hp>=3) ctx.fillStyle='#ce33d8';
+    else if(b.hp>=2) ctx.fillStyle='#90aaff';
+    else ctx.fillStyle='#a5d6a7';
+    ctx.fillRect(b.x,b.y,b.w,b.h);
+    if(b.prop){
+      ctx.fillStyle='#fff';
+      ctx.font='12px Arial';
+      ctx.textAlign='center';
+      ctx.fillText(b.prop==='bomb'?'💣':'❄️', b.x+b.w/2, b.y+12);
+    }
+  });
+
+  if(now >= freezeEnd){
+    if(now-fallTimer > 12000){
+      fallTimer = now;
+      bricks.forEach(b=>b.y += brickH+gap);
+      spawnRow(30, row++);
+    }
+  }
+
+  if(ball.y > h || bricks.some(b=>b.y+b.h >= SAFE_LINE)){
+    triggerGameOver();
+  }
+}
+
+ctrl.addEventListener('touchstart', e=>{
+  lastX = e.touches[0].clientX;
+  holdStart = Date.now();
+  isHolding = true;
+});
+
+ctrl.addEventListener('touchmove', e=>{
+  const x = e.touches[0].clientX;
+  const dx = x - lastX;
+  lastX = x;
+  holdStart = Date.now();
+  pad.x += dx;
+  if(pad.x < 0) pad.x = 0;
+  if(pad.x + pad.w > w) pad.x = w - pad.w;
+});
+
+ctrl.addEventListener('touchend', e=>{
+  isHolding = false;
+});
+
+document.addEventListener('click',e=>{
+  if(gameOver) return;
+  if(e.target.textContent.includes('💣') && bomb>0){
+    bomb--; boom(); updateUI();
+  }
+  if(e.target.textContent.includes('❄️') && freeze>0){
+    freeze--;
+    freezeEnd = Date.now() + 15000;
+    updateUI();
+  }
+});
+
+document.getElementById('restartBtn').onclick = resetGame;
+resetGame();
+window.addEventListener('pagehide', function() {
+  document.removeEventListener('keydown', window.keyListener);
+});
+
+
+</script>
+</body>
+</html>
