@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>数字华容道 - 恶搞之家</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "微软雅黑", sans-serif;
+        }
+        body {
+            background: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 10px;
+        }
+        .box {
+            max-width: 400px;
+            width: 100%;
+            background: #ffffff;
+            border-radius: 24px;
+            padding: 28px 24px;
+            box-shadow: 0 8px 32px rgba(0, 40, 100, 0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 18px;
+        }
+        .title {
+            font-size: 26px;
+            font-weight: 600;
+            color: #1f2937;
+        }
+        .diff {
+            display: flex;
+            gap: 8px;
+        }
+        .diff button {
+            padding: 7px 14px;
+            border-radius: 30px;
+            border: none;
+            background: #f1f5f9;
+            color: #475569;
+            font-weight: 500;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        .diff button.on {
+            background: #3b82f6;
+            color: #fff;
+        }
+        .info {
+            display: flex;
+            gap: 16px;
+            font-size: 14px;
+            color: #475569;
+            font-weight: 500;
+        }
+        .info span {
+            background: #f1f5f9;
+            padding: 5px 11px;
+            border-radius: 12px;
+            color: #334155;
+        }
+        /* 中间区域：棋盘背景改为稍深的渐变灰色，更有质感 */
+        .board {
+            position: relative;
+            background: linear-gradient(145deg, #d1d5db, #e2e8f0);
+            border-radius: 20px;
+            padding: 12px;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .tile {
+            position: absolute;
+            background: #ffffff;
+            color: #1f2937;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 22px;
+            box-shadow: 0 4px 12px rgba(0, 60, 150, 0.07);
+            cursor: grab;
+            transition: transform 0.24s ease, box-shadow 0.24s ease;
+        }
+        .tile:active {
+            cursor: grabbing;
+        }
+        .tile.selected {
+            outline: 2px solid #3b82f6;
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
+            z-index: 10;
+        }
+        .tile.win {
+            background: #10b981;
+            color: #fff;
+            animation: bounce 0.5s ease;
+        }
+        @keyframes bounce {
+            0% { transform: scale(0.85); }
+            50% { transform: scale(1.08); }
+            100% { transform: scale(1); }
+        }
+        .btns {
+            display: flex;
+            gap: 12px;
+            margin-top: 4px;
+        }
+        .btns button {
+            padding: 10px 18px;
+            border-radius: 16px;
+            border: none;
+            background: #3b82f6;
+            color: white;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+        .btns button.gray {
+            background: #f1f5f9;
+            color: #475569;
+        }
+        .modal {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 999;
+        }
+        .modal .card {
+            background: white;
+            padding: 32px;
+            border-radius: 20px;
+            text-align: center;
+            width: 270px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+        }
+        #particle {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+
+<div class="box">
+    <div class="title">数字华容道</div>
+    <div class="diff">
+        <button data-s="3">简单 3×3</button>
+        <button data-s="4" class="on">普通 4×4</button>
+        <button data-s="5">困难 5×5</button>
+    </div>
+    <div class="info">
+        步数：<span id="step">0</span>
+        时间：<span id="time">0</span>s
+    </div>
+    <div class="board" id="board"></div>
+    <div class="btns">
+        <button onclick="undo()">悔步</button>
+        <button onclick="restart()">重来</button>
+        <button class="gray" onclick="back()">首页</button>
+    </div>
+</div>
+
+<div class="modal" id="win">
+    <div class="card">
+        <h2 style="color:#10b981;">恭喜通关！</h2>
+        <p style="margin:12px 0; font-size:15px; line-height:1.6;">
+            难度：<span id="md"></span><br>
+            步数：<span id="ms"></span><br>
+            时间：<span id="mt"></span> 秒
+        </p>
+        <button onclick="closeWin()" style="margin-top:8px;">再来一局</button>
+    </div>
+</div>
+
+<canvas id="particle"></canvas>
+<audio id="bgm" src="mp3/gigisong.mp3" loop>
+
+<script>
+// ========== 音效 ==========
+const slideSound = new Audio("2046/slide.mp3");
+const popSound   = new Audio("2046/pop.mp3");
+
+function playSound(sound) {
+  try {
+    sound.currentTime = 0;
+    sound.play().catch(() => {});
+  } catch (e) {}
+}
+
+let size = 4;
+let tileW, boardW;
+let grid = [];
+let empty = 0;
+let step = 0;
+let time = 0;
+let timer;
+let win = false;
+let history = [];
+let sel = -1;
+
+const board = document.getElementById('board');
+const stepTxt = document.getElementById('step');
+const timeTxt = document.getElementById('time');
+
+window.onload = function(){
+    document.getElementById('bgm').play().catch(()=>{});
+    init(size);
+    bindDiff();
+    bindDrag();
+};
+
+function init(s){
+    size = s;
+    clearInterval(timer);
+    step = 0; time = 0; win = false; history = [];
+    updateTxt();
+
+    if(size===3) boardW = 250;
+    else if(size===4) boardW = 310;
+    else boardW = 340;
+
+    tileW = (boardW - 24 - (size-1)*8) / size;
+    board.style.width = boardW + 'px';
+    board.style.height = boardW + 'px';
+
+    gen();
+    draw();
+    startTime();
+}
+
+function gen(){
+    grid = Array.from({length:size*size}, (_,i)=>i+1);
+    empty = size*size -1;
+    grid[empty] = 0;
+    for(let i=0;i<150;i++){
+        let ns = near(empty);
+        let r = ns[Math.random()*ns.length|0];
+        swap(empty, r);
+        empty = r;
+    }
+}
+
+function near(p){
+    let r = p/size|0, c = p%size;
+    let arr = [];
+    if(c>0) arr.push(p-1);
+    if(c<size-1) arr.push(p+1);
+    if(r>0) arr.push(p-size);
+    if(r<size-1) arr.push(p+size);
+    return arr;
+}
+
+function swap(a,b){ [grid[a],grid[b]] = [grid[b],grid[a]]; }
+
+function draw(){
+    board.innerHTML = '';
+    grid.forEach((n,i)=>{
+        if(n===0) return;
+        let d = document.createElement('div');
+        d.className = 'tile';
+        if(win) d.classList.add('win');
+        d.textContent = n;
+        d.dataset.i = i;
+
+        let r = i/size|0, c = i%size;
+        let x = 12 + c*(tileW+8);
+        let y = 12 + r*(tileW+8);
+        d.style.left = x+'px';
+        d.style.top = y+'px';
+        d.style.width = tileW+'px';
+        d.style.height = tileW+'px';
+        board.appendChild(d);
+    });
+}
+
+function bindDrag(){
+    let drag = false;
+    let sx, sy;
+
+    board.addEventListener('mousedown', start);
+    board.addEventListener('touchstart', start, {passive:false});
+    document.addEventListener('mousemove', move);
+    document.addEventListener('touchmove', move, {passive:false});
+    document.addEventListener('mouseup', end);
+    document.addEventListener('touchend', end);
+
+    function start(e){
+        if(win) return; e.preventDefault();
+        let t = e.target.closest('.tile');
+        if(!t) return;
+        sel = +t.dataset.i;
+        drag = true;
+        document.querySelectorAll('.tile').forEach(x=>x.classList.remove('selected'));
+        t.classList.add('selected');
+
+        let cx = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+        let cy = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+        sx = cx; sy = cy;
+    }
+
+    function move(e){
+        if(!drag || sel==-1) return; e.preventDefault();
+        let cx = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+        let cy = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+        let dx = cx - sx;
+        let dy = cy - sy;
+        let t = document.querySelector(`.tile[data-i="${sel}"]`);
+        if(t) t.style.transform = `translate(${dx}px, ${dy}px)`;
+    }
+
+    function end(){
+        if(!drag || sel==-1){ drag=false; sel=-1; return; }
+        drag = false;
+        let t = document.querySelector(`.tile[data-i="${sel}"]`);
+        t.style.transform = 'translate(0,0)';
+
+        if(near(sel).includes(empty)){
+            playSound(slideSound);
+            history.push({g:[...grid], e:empty, s:step});
+            swap(sel, empty);
+            empty = sel;
+            step++;
+            updateTxt();
+            check();
+            draw();
+        }
+        sel = -1;
+    }
+}
+
+function check(){
+    for(let i=0;i<grid.length-1;i++) if(grid[i]!==i+1) return;
+    win = true;
+    clearInterval(timer);
+    draw();
+    openWin();
+    playSound(popSound);
+    fire();
+}
+
+function startTime(){
+    clearInterval(timer);
+    timer = setInterval(()=>{ time++; timeTxt.textContent = time; }, 1000);
+}
+
+function updateTxt(){ stepTxt.textContent = step; }
+
+function undo(){
+    if(history.length===0 || win) return;
+    let h = history.pop();
+    grid = h.g;
+    empty = h.e;
+    step = h.s;
+    updateTxt();
+    draw();
+}
+
+function restart(){ init(size); }
+function back(){ location.href = 'index.html'; }
+
+function bindDiff(){
+    document.querySelectorAll('.diff button').forEach(b=>{
+        b.onclick = ()=>{
+            document.querySelectorAll('.diff button').forEach(x=>x.classList.remove('on'));
+            b.classList.add('on');
+            init(+b.dataset.s);
+        }
+    });
+}
+
+function openWin(){
+    let m = size===3 ? '简单 3×3' : size===4 ? '普通 4×4' : '困难 5×5';
+    document.getElementById('md').textContent = m;
+    document.getElementById('ms').textContent = step;
+    document.getElementById('mt').textContent = time;
+    document.getElementById('win').style.display = 'flex';
+}
+function closeWin(){
+    document.getElementById('win').style.display = 'none';
+    restart();
+}
+
+function fire(){
+    let cv = document.getElementById('particle');
+    let ctx = cv.getContext('2d');
+    cv.width = window.innerWidth;
+    cv.height = window.innerHeight;
+
+    class P{
+        constructor(){
+            this.x = cv.width/2; this.y = cv.height/2;
+            this.r = Math.random()*4+2;
+            this.vx = Math.random()*6-3;
+            this.vy = Math.random()*6-3;
+            this.h = Math.random()*360;
+        }
+        update(){
+            this.x += this.vx; this.y += this.vy;
+            if(this.r>0.1) this.r -= 0.1;
+        }
+        draw(){
+            ctx.fillStyle = `hsl(${this.h},70%,60%)`;
+            ctx.beginPath();
+            ctx.arc(this.x,this.y,this.r,0,Math.PI*2);
+            ctx.fill();
+        }
+    }
+    let list = Array.from({length:120},()=>new P());
+    function anim(){
+        ctx.clearRect(0,0,cv.width,cv.height);
+        list.forEach(p=>{p.update();p.draw()});
+        list = list.filter(p=>p.r>0.1);
+        if(list.length>0) requestAnimationFrame(anim);
+    }
+    anim();
+}
+window.addEventListener('pagehide', function() {
+  document.removeEventListener('keydown', window.keyListener);
+});
+
+</script>
+</body>
+</html>
