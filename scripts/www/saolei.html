@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>扫雷 - 恶搞之家</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "微软雅黑", sans-serif;
+        }
+
+        body {
+            background: #e6e9f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .game-container {
+            width: 100vw;
+            height: calc(100vw * 16 / 9);
+            max-width: 450px;
+            max-height: 800px;
+            background: linear-gradient(180deg, #f7f9fc 0%, #eef2f7 100%);
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+        }
+
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 10px;
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(6px);
+            border-radius: 10px;
+            margin-bottom: 15px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+        }
+
+        .top-item {
+            font-size: 16px;
+            font-weight: bold;
+            color: #2d3748;
+            width: 30%;
+            text-align: center;
+        }
+
+        .reset-btn {
+            background: #4a5568;
+            color: #fff;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+        }
+        .reset-btn:active {
+            transform: scale(0.95);
+            background: #2d3748;
+        }
+
+        .board {
+            flex: 1;
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 3px;
+            width: 100%;
+        }
+
+        .cell {
+            aspect-ratio: 1 / 1;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 17px;
+            font-weight: bold;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+            cursor: pointer;
+            user-select: none;
+            transition: 0.15s ease;
+        }
+
+        /* 未翻开 */
+        .cell.hidden {
+            background: #cbd5e0;
+        }
+        .cell.hidden:active {
+            background: #bccada;
+        }
+
+        /* 插旗 */
+        .cell.flag {
+            background: #fdd8d8;
+            color: #c53030;
+        }
+
+        /* 炸弹 */
+        .cell.mine {
+            background: #e53e3e;
+            color: #fff;
+        }
+
+        /* 已翻开 */
+        .cell.reveal {
+            background: #ffffff;
+        }
+
+        /* 数字柔和配色 */
+        .c1 { color: #2b6cb0; }
+        .c2 { color: #38a169; }
+        .c3 { color: #dd6b20; }
+        .c4 { color: #6b46c1; }
+        .c5 { color: #805ad5; }
+        .c6 { color: #319795; }
+        .c7 { color: #1a202c; }
+        .c8 { color: #718096; }
+
+        .modal {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(4px);
+            color: white;
+            padding: 25px 35px;
+            border-radius: 12px;
+            font-size: 18px;
+            text-align: center;
+            z-index: 999;
+            display: none;
+        }
+
+        .back-home {
+            margin-top: 12px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 10px;
+            text-align: center;
+            font-weight: bold;
+            color: #2d3748;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+            cursor: pointer;
+        }
+        .back-home:active {
+            transform: scale(0.97);
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="top-bar">
+            <div class="top-item" id="mineLeft">剩余: 20</div>
+            <button class="reset-btn" id="resetBtn">重新开始</button>
+            <div class="top-item" id="timer">时间: 0</div>
+        </div>
+
+        <div class="board" id="board"></div>
+
+        <div class="back-home" onclick="goBack()">返回主页</div>
+        <div class="modal" id="modal"></div>
+    </div>
+
+    <audio id="bgMusic" src="mp3/gigisong.mp3" loop>
+    <script>
+        const config = {
+            cols: 8,
+            rows: 12,
+            mines: 20
+        };
+
+        let board = [];
+        let revealed = [];
+        let flagged = [];
+        let gameOver = false;
+        let timer = 0;
+        let timerInterval;
+        let mineLeft = config.mines;
+
+        const boardEl = document.getElementById('board');
+        const mineLeftEl = document.getElementById('mineLeft');
+        const timerEl = document.getElementById('timer');
+        const modalEl = document.getElementById('modal');
+        const resetBtn = document.getElementById('resetBtn');
+        const bgMusic = document.getElementById('bgMusic');
+
+        document.addEventListener('DOMContentLoaded', () => {
+            bgMusic.play().catch(()=>{});
+            init();
+        });
+
+        function init() {
+            clearInterval(timerInterval);
+            gameOver = false;
+            timer = 0;
+            mineLeft = config.mines;
+            board = [];
+            revealed = [];
+            flagged = [];
+            boardEl.innerHTML = '';
+            updateInfo();
+            createBoard();
+            placeMines();
+            calcNumbers();
+            render();
+            startTimer();
+        }
+
+        function createBoard() {
+            for (let y = 0; y < config.rows; y++) {
+                board[y] = [];
+                revealed[y] = [];
+                flagged[y] = [];
+                for (let x = 0; x < config.cols; x++) {
+                    board[y][x] = 0;
+                    revealed[y][x] = false;
+                    flagged[y][x] = false;
+                }
+            }
+        }
+
+        function placeMines() {
+            let count = 0;
+            while (count < config.mines) {
+                const x = Math.floor(Math.random() * config.cols);
+                const y = Math.floor(Math.random() * config.rows);
+                if (board[y][x] !== 'M') {
+                    board[y][x] = 'M';
+                    count++;
+                }
+            }
+        }
+
+        function calcNumbers() {
+            const dirs = [
+                [-1,-1],[-1,0],[-1,1],
+                [0,-1],        [0,1],
+                [1,-1],[1,0],[1,1]
+            ];
+            for (let y = 0; y < config.rows; y++) {
+                for (let x = 0; x < config.cols; x++) {
+                    if (board[y][x] === 'M') continue;
+                    let n = 0;
+                    for (let [dx, dy] of dirs) {
+                        const nx = x + dx;
+                        const ny = y + dy;
+                        if (nx >= 0 && nx < config.cols && ny >= 0 && ny < config.rows) {
+                            if (board[ny][nx] === 'M') n++;
+                        }
+                    }
+                    board[y][x] = n;
+                }
+            }
+        }
+
+        function render() {
+            boardEl.innerHTML = '';
+            for (let y = 0; y < config.rows; y++) {
+                for (let x = 0; x < config.cols; x++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell hidden';
+                    cell.dataset.x = x;
+                    cell.dataset.y = y;
+
+                    cell.addEventListener('click', () => {
+                        if (gameOver || flagged[y][x]) return;
+                        reveal(x, y);
+                    });
+
+                    cell.addEventListener('contextmenu', (e) => {
+                        e.preventDefault();
+                        if (gameOver || revealed[y][x]) return;
+                        flagged[y][x] = !flagged[y][x];
+                        mineLeft = flagged[y][x] ? mineLeft - 1 : mineLeft + 1;
+                        updateInfo();
+                        render();
+                        checkWin();
+                    });
+
+                    if (revealed[y][x]) {
+                        cell.classList.remove('hidden');
+                        cell.classList.add('reveal');
+                        if (board[y][x] === 'M') {
+                            cell.classList.add('mine');
+                            cell.innerText = '💣';
+                        } else if (board[y][x] > 0) {
+                            cell.innerText = board[y][x];
+                            cell.classList.add(`c${board[y][x]}`);
+                        }
+                    } else if (flagged[y][x]) {
+                        cell.classList.add('flag');
+                        cell.innerText = '🚩';
+                    }
+
+                    boardEl.appendChild(cell);
+                }
+            }
+        }
+
+        function reveal(x, y) {
+            if (revealed[y][x] || flagged[y][x]) return;
+            revealed[y][x] = true;
+
+            if (board[y][x] === 'M') {
+                gameOver = true;
+                showAll();
+                showModal('你被炸到了！游戏结束');
+                return;
+            }
+
+            if (board[y][x] === 0) {
+                const dirs = [
+                    [-1,-1],[-1,0],[-1,1],
+                    [0,-1],        [0,1],
+                    [1,-1],[1,0],[1,1]
+                ];
+                for (let [dx, dy] of dirs) {
+                    const nx = x + dx;
+                    const ny = y + dy;
+                    if (nx >= 0 && nx < config.cols && ny >= 0 && ny < config.rows) {
+                        reveal(nx, ny);
+                    }
+                }
+            }
+
+            render();
+            checkWin();
+        }
+
+        function showAll() {
+            for (let y = 0; y < config.rows; y++) {
+                for (let x = 0; x < config.cols; x++) {
+                    if (board[y][x] === 'M') {
+                        revealed[y][x] = true;
+                    }
+                }
+            }
+            render();
+        }
+
+        function checkWin() {
+            let totalReveal = 0;
+            const totalCells = config.cols * config.rows;
+            for (let y = 0; y < config.rows; y++) {
+                for (let x = 0; x < config.cols; x++) {
+                    if (revealed[y][x]) totalReveal++;
+                }
+            }
+            if (totalReveal === totalCells - config.mines) {
+                gameOver = true;
+                showModal('恭喜你！扫雷成功！');
+            }
+        }
+
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                if (!gameOver) {
+                    timer++;
+                    updateInfo();
+                }
+            }, 1000);
+        }
+
+        function updateInfo() {
+            mineLeftEl.innerText = `剩余: ${mineLeft}`;
+            timerEl.innerText = `时间: ${timer}`;
+        }
+
+        function showModal(text) {
+            modalEl.innerText = text;
+            modalEl.style.display = 'block';
+            setTimeout(() => {
+                modalEl.style.display = 'none';
+            }, 2000);
+        }
+
+        resetBtn.addEventListener('click', init);
+
+        function goBack() {
+            window.location.href = 'index.html';
+        }
+        window.addEventListener('pagehide', function() {
+  document.removeEventListener('keydown', window.keyListener);
+});
+
+    </script>
+</body>
+</html>
