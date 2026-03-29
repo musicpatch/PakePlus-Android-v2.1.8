@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=365, initial-scale=1.0, user-scalable=no">
+<title>汉诺塔</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:微软雅黑,sans-serif}
+html,body{width:100%;background:#f6f7f9}
+
+.main{
+  width:365px;
+  margin:0 auto;
+  padding:12px;
+}
+
+.title{
+  text-align:center;
+  font-size:20px;
+  margin:8px 0;
+  color:#222;
+}
+
+.info{
+  display:flex;
+  justify-content:center;
+  gap:20px;
+  font-size:15px;
+  margin-bottom:10px;
+  color:#333;
+}
+
+.btn-bar{
+  display:flex;
+  justify-content:center;
+  gap:10px;
+  margin-bottom:12px;
+}
+
+.btn{
+  padding:8px 14px;
+  border-radius:8px;
+  border:none;
+  background:#4e9fff;
+  color:#fff;
+  font-size:14px;
+}
+
+.game{
+  position:relative;
+  width:335px;
+  height:300px;
+  margin:0 auto;
+  background:#eef7ff;
+  border-radius:12px;
+}
+
+.base{
+  position:absolute;
+  left:10px;
+  right:10px;
+  bottom:15px;
+  height:8px;
+  background:#666;
+  border-radius:4px;
+}
+
+.pillar{
+  position:absolute;
+  bottom:23px;
+  width:8px;
+  height:180px;
+  background:#888;
+  border-radius:4px;
+  transform:translateX(-50%);
+}
+
+.p1{ left:16.666%; }
+.p2{ left:50%; }
+.p3{ left:83.333%; }
+
+.disk{
+  position:absolute;
+  height:20px;
+  border-radius:10px;
+  transform:translateX(-50%);
+  bottom:23px;
+  border:1px solid #fff;
+}
+
+.d5{ width:100px;background:#c4b5fd}
+.d4{ width:88px;background:#7dd3fc}
+.d3{ width:76px;background:#86efac}
+.d2{ width:64px;background:#fde68a}
+.d1{ width:52px;background:#fca5a5}
+
+.disk.selected{
+  transform:translateX(-50%) translateY(-12px);
+  box-shadow:0 0 12px #ff9;
+}
+
+.win{
+  position:fixed;
+  top:0;left:0;right:0;bottom:0;
+  background:rgba(0,0,0,0.5);
+  display:none;
+  align-items:center;
+  justify-content:center;
+}
+
+.win-box{
+  background:#fff;
+  padding:30px;
+  border-radius:12px;
+  text-align:center;
+}
+</style>
+</head>
+<body>
+
+<div class="main">
+  <div class="title">汉诺塔</div>
+  <div class="info">
+    <div>步数：<span id="step">0</span></div>
+  </div>
+  <div class="btn-bar">
+    <button class="btn" id="reset">重新开始</button>
+    <button class="btn" id="auto">自动演示</button>
+    <button class="btn" onclick="location.href='index.html'">返回</button>
+  </div>
+
+  <div class="game" id="game">
+    <div class="base"></div>
+    <div class="pillar p1"></div>
+    <div class="pillar p2"></div>
+    <div class="pillar p3"></div>
+  </div>
+</div>
+
+<div class="win" id="win">
+  <div class="win-box">
+    <h2>恭喜通关！</h2>
+    <p>总步数：<span id="finalStep"></span></p>
+    <br>
+    <button class="btn" onclick="closeWinAndReset()">确定</button>
+  </div>
+</div>
+
+<script>
+const stepEl = document.getElementById('step');
+const game = document.getElementById('game');
+const win = document.getElementById('win');
+const finalStep = document.getElementById('finalStep');
+
+let tower = [[5,4,3,2,1], [], []];
+let selected = null;
+let step = 0;
+let autoing = false;
+
+function render() {
+  document.querySelectorAll('.disk').forEach(e => e.remove());
+  [[0,16.666], [1,50], [2,83.333]].forEach(([i, per]) => {
+    const arr = tower[i];
+    arr.forEach((d, j) => {
+      const div = document.createElement('div');
+      div.className = `disk d${d}`;
+      div.style.left = per + '%';
+      div.style.bottom = 23 + j * 22 + 'px';
+      if (selected === i && j === arr.length - 1) {
+        div.classList.add('selected');
+      }
+      game.appendChild(div);
+    });
+  });
+  stepEl.textContent = step;
+}
+
+function move(fromIdx, toIdx) {
+  const from = tower[fromIdx];
+  const to = tower[toIdx];
+  if (from.length === 0) return false;
+  const top = from[from.length - 1];
+  if (to.length !== 0 && to[to.length - 1] < top) return false;
+  to.push(from.pop());
+  step++;
+  return true;
+}
+
+function isSolved(arr) {
+  return arr.length === 5 &&
+         arr[0] === 5 &&
+         arr[1] === 4 &&
+         arr[2] === 3 &&
+         arr[3] === 2 &&
+         arr[4] === 1;
+}
+
+function check() {
+  if (isSolved(tower[0]) || isSolved(tower[1]) || isSolved(tower[2])) {
+    finalStep.textContent = step;
+    win.style.display = 'flex';
+  }
+}
+
+// 关闭弹窗并重置回第一根柱子
+function closeWinAndReset() {
+  win.style.display = 'none';
+  tower = [[5,4,3,2,1], [], []];
+  selected = null;
+  step = 0;
+  autoing = false;
+  render();
+}
+
+function reset() {
+  closeWinAndReset();
+}
+
+function hanoi(n, a, b, c, list) {
+  if (n === 1) { list.push([a, b]); return; }
+  hanoi(n-1, a, c, b, list);
+  list.push([a, b]);
+  hanoi(n-1, c, b, a, list);
+}
+
+function auto() {
+  if (autoing) return;
+  autoing = true;
+  const list = [];
+  hanoi(5, 0, 2, 1, list);
+  function run() {
+    if (!list.length || !autoing) { autoing = false; return; }
+    const [f, t] = list.shift();
+    move(f, t);
+    render();
+    check();
+    setTimeout(run, 400);
+  }
+  run();
+}
+
+// 左中右三大区域触控
+game.addEventListener('click', e => {
+  if (autoing) return;
+  const rect = game.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const w = rect.width;
+  let idx;
+  if (x < w / 3) {
+    idx = 0;
+  } else if (x < (w / 3) * 2) {
+    idx = 1;
+  } else {
+    idx = 2;
+  }
+
+  if (selected === null) {
+    if (tower[idx].length > 0) selected = idx;
+  } else {
+    if (selected === idx) {
+      selected = null;
+    } else {
+      const ok = move(selected, idx);
+      if (ok) {
+        selected = null;
+        check();
+      }
+    }
+  }
+  render();
+});
+
+document.getElementById('reset').onclick = reset;
+document.getElementById('auto').onclick = auto;
+
+render();
+
+window.addEventListener('pagehide', function() {
+  document.removeEventListener('keydown', window.keyListener);
+});
+
+</script>
+</body>
+</html>
