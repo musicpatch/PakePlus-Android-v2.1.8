@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, user-scalable=no">
+<title>推箱子</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{
+    width:100%;height:100%;overflow:hidden;background:#1a1128;color:#fff;
+}
+.game{
+    width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:8px;
+}
+#canvas{
+    display:block;background:#1a1128;
+}
+#msg{font-size:14px;}
+.btns{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;}
+.btns input{padding:6px 10px;border:none;border-radius:6px;background:#333;color:#fff;}
+.map-select{padding:6px 10px;border-radius:6px;background:#222;color:#fff;border:1px solid #555;}
+.to-editor{padding:8px 14px;background:#ff6b35;border:none;border-radius:8px;color:#fff;margin-top:4px;}
+
+.modal{
+    position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);
+    display:none;align-items:center;justify-content:center;z-index:999;
+}
+.modal-box{background:#222;padding:24px 32px;border-radius:10px;text-align:center;}
+.modal-box button{margin-top:12px;padding:6px 14px;background:#444;color:#fff;border:none;border-radius:6px;}
+</style>
+</head>
+<body>
+<div class="game">
+    <select id="mapSource" class="map-select">
+        <option value="official">官方地图</option>
+        <option value="custom">自制关卡</option>
+    </select>
+
+    <select id="customLevelSelect" class="map-select" style="display:none;">
+        <option value="1">自制关卡 1</option>
+        <option value="2">自制关卡 2</option>
+        <option value="3">自制关卡 3</option>
+        <option value="4">自制关卡 4</option>
+        <option value="5">自制关卡 5</option>
+        <option value="6">自制关卡 6</option>
+        <option value="7">自制关卡 7</option>
+        <option value="8">自制关卡 8</option>
+        <option value="9">自制关卡 9</option>
+        <option value="10">自制关卡 10</option>
+    </select>
+
+    <canvas id="canvas" width="560" height="560"></canvas>
+    <div id="msg"></div>
+    <div class="btns">
+        <input type="button" value="上一关" onclick="NextLevel(-1)">
+        <input type="button" value="下一关" onclick="NextLevel(1)">
+        <input type="button" value="重玩本关" onclick="initLevel()">
+        <input type="button" value="悔一步" onclick="undoStep()">
+    </div>
+    <button class="to-editor" onclick="location.href='editor.html'">进入地图编辑器</button>
+</div>
+
+<div class="modal" id="tipModal">
+    <div class="modal-box">
+        <p id="modalText"></p>
+        <button onclick="closeModal()">确定</button>
+    </div>
+</div>
+
+<script src="js/mapdata100.js"></script>
+<script>
+var can = document.getElementById("canvas");
+var msg = document.getElementById("msg");
+var cxt = can.getContext("2d");
+var mapSource = document.getElementById("mapSource");
+var customLevelSelect = document.getElementById("customLevelSelect");
+
+var modal = document.getElementById("tipModal");
+var modalText = document.getElementById("modalText");
+
+function showModal(txt) {
+    modalText.innerText = txt;
+    modal.style.display = "flex";
+}
+function closeModal() {
+    modal.style.display = "none";
+}
+
+function playSound(src) {
+    try {
+        let audio = new Audio(src);
+        audio.volume = 0.4;
+        audio.play().catch(()=>{});
+    } catch(e) {}
+}
+
+var baseGrid = 35;
+var scale = 1.2;
+var grid = baseGrid * scale;
+var mapCols = 16;
+var mapRows = 16;
+
+var curMap, curLevel, curMan;
+var iCurlevel = 0;
+var moveTimes = 0;
+var perPosition;
+var useCustom = false;
+
+var historyStack = [];
+var maxHistory = 20;
+var moving = false;
+
+var offsetX = 0, offsetY = 0;
+var isDrag = false, dragMoved = false;
+var dragStart = {x:0, y:0};
+
+// 保存整关地板颜色数组，一关只生成一次
+var floorGridColors = [];
+
+var wall, box, ball, up, down, left, right;
+var oImgs = {
+    wall:"images/wall.png",
+    box:"images/box.png",
+    ball:"images/ball.png",
+    up:"images/up.png",
+    down:"images/down.png",
+    left:"images/left.png",
+    right:"images/right.png"
+};
+
+// 生成单个马卡龙浅色（已废弃，统一纯白）
+function macaronColor() {
+    return "#ffffff"; // 强制纯白色
+}
+
+// 为当前关卡生成整套地板颜色
+function generateFloorColors() {
+    floorGridColors = [];
+    for (let i = 0; i < 16; i++) {
+        let row = [];
+        for (let j = 0; j < 16; j++) {
+            row.push(macaronColor());
+        }
+        floorGridColors.push(row);
+    }
+}
+
+function getCustomMap(level) {
+    const data = localStorage.getItem("customSokobanMap_" + level);
+    if (!data) return null;
+    try { return JSON.parse(data); } catch (e) { return null; }
+}
+
+function imgPreload(callback){
+    var count=0, total=Object.keys(oImgs).length;
+    for(var k in oImgs){
+        var img = new Image();
+        img.onload = ()=>{ if(++count>=total) callback(); };
+        img.src = oImgs[k];
+        window[k] = img;
+    }
+}
+
+imgPreload(()=>{
+    perPosition = {x:5, y:5};
+    init();
+});
+
+function init(){
+    initLevel();
+    showMoveInfo();
+}
+
+function clampOffset(){
+    var totalWidth = mapCols * grid;
+    var totalHeight = mapRows * grid;
+
+    // 左右再减10px
+    var maxXOffset = (can.width - totalWidth) - 105;
+    var maxYOffset = (can.height - totalHeight) - 10;
+
+    offsetX = Math.min(Math.max(offsetX, maxXOffset), 105);
+    offsetY = Math.min(Math.max(offsetY, maxYOffset), 10);
+}
+
+function InitMap(){
+    cxt.clearRect(0,0,can.width,can.height);
+    for(let i=0;i<16;i++){
+        for(let j=0;j<16;j++){
+            var x = j*grid + offsetX;
+            var y = i*grid + offsetY;
+            // 使用当前关卡固定的颜色
+            cxt.fillStyle = floorGridColors[i][j];
+            cxt.fillRect(x, y, grid, grid);
+            cxt.strokeStyle = "#888";
+            cxt.lineWidth = 1;
+            cxt.strokeRect(x, y, grid, grid);
+        }
+    }
+}
+
+function DrawMap(level){
+    for(let i=0;i<16;i++){
+        for(let j=0;j<16;j++){
+            let pic = null;
+            switch(level[i][j]){
+                case 1: pic = wall; break;
+                case 2: pic = ball; break;
+                case 3: pic = box; break;
+                case 4: pic = curMan; perPosition = {x:i,y:j}; break;
+                case 5: pic = box; break;
+                default: continue;
+            }
+            if(pic){
+                cxt.drawImage(pic, j*grid + offsetX, i*grid + offsetY, grid, grid);
+            }
+        }
+    }
+}
+
+function copyArray(a) {
+    return JSON.parse(JSON.stringify(a));
+}
+
+function initLevel(){
+    // 每关只生成一次随机马卡龙地板色块
+    generateFloorColors();
+
+    if(useCustom){
+        const cv = parseInt(customLevelSelect.value);
+        const custom = getCustomMap(cv);
+        if(!custom){
+            showModal("该自制关卡不存在");
+            return;
+        }
+        curMap = copyArray(custom);
+        curLevel = custom;
+    }else{
+        curMap = copyArray(levels[iCurlevel]);
+        curLevel = levels[iCurlevel];
+    }
+    curMan = down;
+    historyStack = [];
+    offsetX = offsetY = 0;
+    clampOffset();
+    InitMap();
+    DrawMap(curMap);
+}
+
+function NextLevel(i){
+    if(useCustom){
+        showModal("请在界面上方切换自制关卡");
+        return;
+    }
+    iCurlevel = Math.max(0, Math.min(levels.length-1, iCurlevel + i));
+    initLevel();
+    moveTimes = 0;
+    showMoveInfo();
+}
+
+function saveHistory(){
+    historyStack.push({
+        map: copyArray(curMap),
+        pos:{x:perPosition.x, y:perPosition.y},
+        dir:curMan, step:moveTimes
+    });
+    if(historyStack.length>maxHistory) historyStack.shift();
+}
+
+function undoStep(){
+    if(!historyStack.length){
+        showModal("无步数可悔");
+        return;
+    }
+    let s = historyStack.pop();
+    curMap = s.map;
+    perPosition = s.pos;
+    curMan = s.dir;
+    moveTimes = s.step;
+    InitMap(); DrawMap(curMap); showMoveInfo();
+}
+
+function go(dir){
+    saveHistory();
+    let dx=0, dy=0;
+    switch(dir){
+        case "up": curMan=up; dx=-1; break;
+        case "down": curMan=down; dx=1; break;
+        case "left": curMan=left; dy=-1; break;
+        case "right": curMan=right; dy=1; break;
+    }
+    let nx = perPosition.x + dx;
+    let ny = perPosition.y + dy;
+    let nx2 = nx + dx;
+    let ny2 = ny + dy;
+
+    let moved = Trygo(nx,ny,nx2,ny2);
+    if(moved) moveTimes++;
+
+    InitMap(); DrawMap(curMap); showMoveInfo();
+
+    if(checkFinish()){
+        setTimeout(()=>{
+            playSound("audio/pop.mp3");
+            showModal("恭喜过关！");
+            setTimeout(()=>{
+                if(useCustom){
+                    let curr = parseInt(customLevelSelect.value);
+                    let maxLv = 10;
+                    if(curr < maxLv){
+                        customLevelSelect.value = curr + 1;
+                        initLevel();
+                    }
+                } else {
+                    NextLevel(1);
+                }
+                closeModal();
+            }, 900);
+        }, 500);
+    }
+}
+
+function Trygo(x1, y1, x2, y2) {
+    if (x1 < 0 || y1 < 0 || x1 >= 16 || y1 >= 16) return false;
+    if (curMap[x1][y1] === 1) return false;
+
+    let isBox = false;
+    
+    if (curMap[x1][y1] === 3 || curMap[x1][y1] === 5) {
+        isBox = true;
+        
+        if (x2 < 0 || y2 < 0 || x2 >= 16 || y2 >= 16) return false;
+        if (curMap[x2][y2] === 1) return false;
+        if (curMap[x2][y2] === 3 || curMap[x2][y2] === 5) return false;
+        
+        curMap[x2][y2] = 3;
+        curMap[x1][y1] = (curLevel[x1][y1] === 2 || curLevel[x1][y1] === 5) ? 2 : 0;
+        
+        playSound("audio/slide.mp3");
+        if (curLevel[x2][y2] === 2 || curLevel[x2][y2] === 5) {
+            playSound("audio/merge.mp3");
+        }
+    }
+    
+    let oldX = perPosition.x;
+    let oldY = perPosition.y;
+    curMap[oldX][oldY] = (curLevel[oldX][oldY] === 2 || curLevel[oldX][oldY] === 5) ? 2 : 0;
+    curMap[x1][y1] = 4;
+    perPosition.x = x1;
+    perPosition.y = y1;
+    
+    return true;
+}
+
+function checkFinish(){
+    for(let i=0;i<16;i++){
+        for(let j=0;j<16;j++){
+            if( (curLevel[i][j] === 2 || curLevel[i][j] === 5) && curMap[i][j] !== 3 )
+                return false;
+        }
+    }
+    return true;
+}
+
+function findPath(startX, startY, targetX, targetY){
+    const dirs = [[-1,0,"up"],[1,0,"down"],[0,-1,"left"],[0,1,"right"]];
+    let queue = [];
+    let visited = Array.from({length:16},()=>Array(16).fill(false));
+    queue.push({x:startX, y:startY, path:[]});
+    visited[startX][startY] = true;
+
+    while(queue.length>0){
+        let curr = queue.shift();
+        if(curr.x === targetX && curr.y === targetY){
+            return curr.path;
+        }
+        for(let [dx,dy,dir] of dirs){
+            let nx = curr.x + dx;
+            let ny = curr.y + dy;
+            if(nx<0||ny<0||nx>=16||ny>=16) continue;
+            if(visited[nx][ny]) continue;
+            if(curMap[nx][ny] === 1 || curMap[nx][ny] === 3) continue;
+            visited[nx][ny] = true;
+            queue.push({x:nx, y:ny, path:[...curr.path, dir]});
+        }
+    }
+    return null;
+}
+
+function goWalk(targetX, targetY){
+    if(moving) return;
+    let path = findPath(perPosition.x, perPosition.y, targetX, targetY);
+    if(!path || path.length===0) return;
+    runPath(path);
+}
+
+function runPath(path){
+    if(path.length===0){
+        moving = false;
+        return;
+    }
+    moving = true;
+    go(path.shift());
+    setTimeout(()=>runPath(path), 150);
+}
+
+function handleRealClick(clientX, clientY){
+    if(moving || dragMoved) return;
+    const rect = can.getBoundingClientRect();
+    const mx = clientX - rect.left;
+    const my = clientY - rect.top;
+    const gx = Math.floor((mx - offsetX)/grid);
+    const gy = Math.floor((my - offsetY)/grid);
+    if(gy<0||gx<0||gy>=16||gx>=16) return;
+
+    if(curMap[gy][gx]===3){
+        let dx = gy - perPosition.x;
+        let dy = gx - perPosition.y;
+        if(Math.abs(dx)+Math.abs(dy)===1){
+            if(dx===-1) go("up");
+            if(dx===1) go("down");
+            if(dy===-1) go("left");
+            if(dy===1) go("right");
+        }
+        return;
+    }
+    goWalk(gy, gx);
+}
+
+can.addEventListener("mousedown", e=>{
+    isDrag = true;
+    dragMoved = false;
+    dragStart.x = e.clientX;
+    dragStart.y = e.clientY;
+});
+document.addEventListener("mousemove", e=>{
+    if(!isDrag) return;
+    let dx = e.clientX - dragStart.x;
+    let dy = e.clientY - dragStart.y;
+    if(Math.abs(dx)>3||Math.abs(dy)>3) dragMoved = true;
+    offsetX += dx;
+    offsetY += dy;
+    dragStart.x = e.clientX;
+    dragStart.y = e.clientY;
+    clampOffset();
+    InitMap();
+    DrawMap(curMap);
+});
+document.addEventListener("mouseup", e=>{
+    if(isDrag && !dragMoved){
+        handleRealClick(e.clientX, e.clientY);
+    }
+    isDrag = false;
+    dragMoved = false;
+});
+
+can.addEventListener("touchstart", e=>{
+    e.preventDefault();
+    isDrag = true;
+    dragMoved = false;
+    let t = e.touches[0];
+    dragStart.x = t.clientX;
+    dragStart.y = t.clientY;
+});
+document.addEventListener("touchmove", e=>{
+    if(!isDrag) return;
+    e.preventDefault();
+    let t = e.touches[0];
+    let dx = t.clientX - dragStart.x;
+    let dy = t.clientY - dragStart.y;
+    if(Math.abs(dx)>3||Math.abs(dy)>3) dragMoved = true;
+    offsetX += dx;
+    offsetY += dy;
+    dragStart.x = t.clientX;
+    dragStart.y = t.clientY;
+    clampOffset();
+    InitMap();
+    DrawMap(curMap);
+});
+document.addEventListener("touchend", e=>{
+    if(isDrag && !dragMoved && e.changedTouches.length){
+        let t = e.changedTouches[0];
+        handleRealClick(t.clientX, t.clientY);
+    }
+    isDrag = false;
+    dragMoved = false;
+});
+
+function showMoveInfo(){
+    msg.innerText = useCustom
+        ? `自制关卡${customLevelSelect.value} | 步数：${moveTimes}`
+        : `第${iCurlevel+1}关 | 步数：${moveTimes}`;
+}
+
+mapSource.addEventListener("change", ()=>{
+    useCustom = mapSource.value === "custom";
+    customLevelSelect.style.display = useCustom ? "inline-block" : "none";
+    iCurlevel = 0;
+    initLevel();
+});
+
+customLevelSelect.addEventListener("change", ()=>{
+    if(useCustom) initLevel();
+});
+</script>
+</body>
+</html>
