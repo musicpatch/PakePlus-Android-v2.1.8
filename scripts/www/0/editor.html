@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>地图编辑器</title>
+<style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    html,body{height:100%;background:#1a1128;color:#fff;font-family:sans-serif;}
+    body{
+        display:flex;flex-direction:column;align-items:center;
+        padding:10px;gap:8px;
+    }
+    #canvas{
+        width:90vw;
+        height:90vw;
+        max-width:560px;max-height:560px;
+        background:#1a1128;
+        border:2px solid #444;
+    }
+    .tools{
+        display:flex;gap:6px;flex-wrap:wrap;justify-content:center;
+    }
+    .tools button{
+        padding:8px 10px;border-radius:6px;border:none;
+        background:#333;color:#fff;
+    }
+    .tools button.active{background:#ff6b35;}
+    .level-bar{
+        display:flex;
+        align-items:center;
+        gap:6px;
+    }
+    .level-bar select{
+        padding:6px;
+        background:#222;
+        color:#fff;
+        border-radius:6px;
+        border:1px solid #555;
+    }
+    .btns{
+        display:flex;gap:8px;flex-wrap:wrap;justify-content:center;
+    }
+    .btns button{
+        padding:10px 12px;border-radius:8px;border:none;
+        background:#333;color:#fff;
+    }
+    #tip{font-size:14px;color:#ccc;}
+    .copyright{font-size:12px;color:#888;margin-top:4px;}
+</style>
+</head>
+<body>
+    <h3>地图编辑器</h3>
+    <div class="level-bar">
+        <span>当前关卡：</span>
+        <select id="levelSelector">
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+            <option value="6">6</option>
+            <option value="7">7</option>
+            <option value="8">8</option>
+            <option value="9">9</option>
+            <option value="10">10</option>
+        </select>
+    </div>
+    <div id="tip">请编辑地图</div>
+    <div class="tools">
+        <button data-t="0" class="active">空地</button>
+        <button data-t="1">墙</button>
+        <button data-t="2">终点</button>
+        <button data-t="3">箱子</button>
+        <button data-t="4">人物</button>
+    </div>
+    <canvas id="canvas"></canvas>
+    <div class="btns">
+        <button id="new">新建空白</button>
+        <button id="load">加载本关</button>
+        <button id="save">保存本关</button>
+        <button id="goback">返回游戏</button>
+    </div>
+    <div class="copyright">
+        作者：musicmend<br>QQ：280024205
+    </div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const levelSelector = document.getElementById('levelSelector');
+canvas.width  = 560;
+canvas.height = 560;
+
+const ROWS = 16;
+const COLS = 16;
+const GRID = canvas.width / COLS;
+
+let currentTool = 0;
+let map = [];
+
+function empty() {
+    let m = [];
+    for (let i = 0; i < ROWS; i++) {
+        let row = [];
+        for (let j = 0; j < COLS; j++) row.push(0);
+        m.push(row);
+    }
+    return m;
+}
+
+function newMap() {
+    map = empty();
+    tip("已清空当前关卡");
+    draw();
+}
+
+function loadCurrentLevel() {
+    const lv = levelSelector.value;
+    const data = localStorage.getItem("customSokobanMap_" + lv);
+    if (!data) {
+        tip("当前关卡无存档");
+        return;
+    }
+    try {
+        map = JSON.parse(data);
+        tip("第" + lv + "关加载成功");
+        draw();
+    } catch (e) {
+        tip("加载失败");
+    }
+}
+
+function saveCurrentLevel() {
+    const lv = levelSelector.value;
+    localStorage.setItem("customSokobanMap_" + lv, JSON.stringify(map));
+    tip("第" + lv + "关已保存");
+}
+
+function tip(s) {
+    document.getElementById('tip').textContent = s;
+}
+
+function draw() {
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    const color = ["#222", "#666", "#fa4", "#fc4", "#f44"];
+    for (let i = 0; i < ROWS; i++) {
+        for (let j = 0; j < COLS; j++) {
+            ctx.fillStyle = color[map[i][j]];
+            ctx.fillRect(j*GRID, i*GRID, GRID-1, GRID-1);
+        }
+    }
+    ctx.fillStyle = "#fff";
+    ctx.font = "16px Arial";
+    ctx.textAlign = "center";
+    for (let i = 0; i < ROWS; i++) {
+        for (let j = 0; j < COLS; j++) {
+            const t = map[i][j];
+            const cx = j*GRID + GRID/2;
+            const cy = i*GRID + GRID/2;
+            if (t === 2) ctx.fillText("G", cx, cy);
+            if (t === 3) ctx.fillText("B", cx, cy);
+            if (t === 4) ctx.fillText("P", cx, cy);
+        }
+    }
+}
+
+canvas.addEventListener('click', e => {
+    const r = canvas.getBoundingClientRect();
+    const x = Math.floor((e.clientX - r.left) / r.width  * COLS);
+    const y = Math.floor((e.clientY - r.top)  / r.height * ROWS);
+    if (x < 0 || y < 0 || x >= COLS || y >= ROWS) return;
+
+    if (currentTool === 4) {
+        for (let ii = 0; ii < ROWS; ii++) {
+            for (let jj = 0; jj < COLS; jj++) {
+                if (map[ii][jj] === 4) map[ii][jj] = 0;
+            }
+        }
+    }
+    map[y][x] = currentTool;
+    draw();
+});
+
+document.querySelectorAll('.tools button').forEach(b => {
+    b.addEventListener('click', () => {
+        document.querySelectorAll('.tools button').forEach(x => x.classList.remove('active'));
+        b.classList.add('active');
+        currentTool = +b.dataset.t;
+    });
+});
+
+levelSelector.addEventListener('change', ()=>{
+    loadCurrentLevel();
+});
+
+document.getElementById('new').onclick      = newMap;
+document.getElementById('load').onclick     = loadCurrentLevel;
+document.getElementById('save').onclick     = saveCurrentLevel;
+document.getElementById('goback').onclick   = () => location.href = 'txz.html';
+
+map = empty();
+draw();
+</script>
+</body>
+</html>
