@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, user-scalable=no, viewport-fit=cover">
-<title>推箱子 · 经典小人</title>
+<title>推箱子 · 优化尺寸</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 html,body{
@@ -12,10 +12,22 @@ html,body{
 .game{
     width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:12px;
 }
-#canvas{
-    display:block;background:#1e2a32;border-radius:20px;
-    box-shadow:0 12px 28px rgba(0,0,0,0.5);
-    cursor:pointer;
+.scroll-container {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+    padding: 0 15px;
+    box-sizing: border-box;
+    touch-action: pan-x;
+}
+#canvas {
+    display: block;
+    background: #1e2a32;
+    border-radius: 20px;
+    box-shadow: 0 12px 28px rgba(0,0,0,0.5);
+    /* 动态宽度，由 JS 设置 */
 }
 #msg{
     font-size:14px;background:#0f172a80;padding:5px 16px;border-radius:30px;
@@ -59,7 +71,9 @@ html,body{
         <option value="10">自制关卡 10</option>
     </select>
 
-    <canvas id="canvas" width="560" height="560"></canvas>
+    <div class="scroll-container" id="scrollContainer">
+        <canvas id="canvas"></canvas>
+    </div>
     <div id="msg"></div>
     <div class="btns">
         <input type="button" value="上一关" onclick="NextLevel(-1)">
@@ -79,12 +93,23 @@ html,body{
 
 <script src="js/mapdata100.js"></script>
 <script>
-// ========== 固定格子35px，地图完全显示 ==========
+// ========== 格子大小：改为 30px（可手动改成 28） ==========
+var GRID_SIZE = 30;   // 改成 28 试试看
+var MAP_W = 16;
+var MAP_H = 16;
+
 var can = document.getElementById("canvas");
 var msg = document.getElementById("msg");
 var cxt = can.getContext("2d");
 var mapSource = document.getElementById("mapSource");
 var customLevelSelect = document.getElementById("customLevelSelect");
+var scrollContainer = document.getElementById("scrollContainer");
+
+// 设置画布大小
+can.width = MAP_W * GRID_SIZE;
+can.height = MAP_H * GRID_SIZE;
+can.style.width = can.width + "px";
+can.style.height = can.height + "px";
 
 var modal = document.getElementById("tipModal");
 var modalText = document.getElementById("modalText");
@@ -147,9 +172,9 @@ function _playInternal(type) {
 }
 
 // ========== 游戏核心变量 ==========
-var grid = 35;
-var mapCols = 16;
-var mapRows = 16;
+var grid = GRID_SIZE;
+var mapCols = MAP_W;
+var mapRows = MAP_H;
 
 var curMap, curLevel, curMan;
 var iCurlevel = 0;
@@ -161,7 +186,6 @@ var historyStack = [];
 var maxHistory = 20;
 var moving = false;
 
-var offsetX = 0, offsetY = 0;
 var floorGridColors = [];
 
 // 人物图片变量
@@ -171,9 +195,9 @@ var upImg, downImg, leftImg, rightImg;
 function generateFloorColors() {
     var pal = ["#e2ecf5","#d4e2f0","#cbdbe9","#d9e4ef","#cfe0ed","#e6edf4","#dce8f2"];
     floorGridColors = [];
-    for (var i = 0; i < 16; i++) {
+    for (var i = 0; i < MAP_H; i++) {
         var row = [];
-        for (var j = 0; j < 16; j++) {
+        for (var j = 0; j < MAP_W; j++) {
             var idx = (i*3 + j*7) % pal.length;
             row.push(pal[idx]);
         }
@@ -187,7 +211,7 @@ function getCustomMap(level) {
     try { return JSON.parse(data); } catch (e) { return null; }
 }
 
-// ========== 绘图辅助（墙壁、箱子、目标点纯代码） ==========
+// ========== 绘图辅助 ==========
 function roundedRect(x, y, w, h, r, fill, stroke) {
     cxt.beginPath();
     cxt.moveTo(x+r, y);
@@ -206,20 +230,20 @@ function roundedRect(x, y, w, h, r, fill, stroke) {
 }
 
 function drawWall(x, y) {
-    roundedRect(x+2, y+2, grid-4, grid-4, 6, "#2f4057", "#4a627a");
+    roundedRect(x+2, y+2, grid-4, grid-4, 5, "#2f4057", "#4a627a");
     cxt.fillStyle = "#1c2b3b";
-    cxt.fillRect(x+6, y+grid-12, 5, 6);
-    cxt.fillRect(x+grid-11, y+grid-12, 5, 6);
+    cxt.fillRect(x+5, y+grid-10, 4, 5);
+    cxt.fillRect(x+grid-9, y+grid-10, 4, 5);
 }
 
 function drawBox(x, y) {
-    roundedRect(x+3, y+3, grid-6, grid-6, 7, "#b87c4f", "#e2bc8c");
+    roundedRect(x+3, y+3, grid-6, grid-6, 6, "#b87c4f", "#e2bc8c");
     cxt.fillStyle = "#9b5e2c";
-    cxt.fillRect(x+grid*0.25, y+grid*0.3, grid*0.5, 5);
+    cxt.fillRect(x+grid*0.25, y+grid*0.3, grid*0.5, 4);
     cxt.fillStyle = "#c98a4b";
-    cxt.fillRect(x+grid*0.2, y+grid*0.55, grid*0.6, 5);
+    cxt.fillRect(x+grid*0.2, y+grid*0.55, grid*0.6, 4);
     cxt.fillStyle = "#6b3e1a";
-    cxt.fillRect(x+grid*0.35, y+grid*0.75, grid*0.3, 4);
+    cxt.fillRect(x+grid*0.35, y+grid*0.75, grid*0.3, 3);
 }
 
 function drawTarget(x, y) {
@@ -264,8 +288,8 @@ function loadImages(callback) {
 // 绘制地图底色和装饰
 function InitMap(){
     cxt.clearRect(0,0,can.width,can.height);
-    for(var i=0;i<16;i++){
-        for(var j=0;j<16;j++){
+    for(var i=0;i<MAP_H;i++){
+        for(var j=0;j<MAP_W;j++){
             var x = j*grid;
             var y = i*grid;
             cxt.fillStyle = floorGridColors[i][j];
@@ -273,11 +297,10 @@ function InitMap(){
             cxt.strokeStyle = "#8aa0b5";
             cxt.lineWidth = 0.6;
             cxt.strokeRect(x, y, grid, grid);
-            // 随机小花
             if ((i*7+j*3) % 11 === 0) {
                 cxt.fillStyle = "#aac9b0";
                 cxt.beginPath();
-                cxt.arc(x+grid-10, y+grid-10, 3, 0, Math.PI*2);
+                cxt.arc(x+grid-8, y+grid-8, 2.5, 0, Math.PI*2);
                 cxt.fill();
             }
         }
@@ -285,8 +308,8 @@ function InitMap(){
 }
 
 function DrawMap(level){
-    for(var i=0;i<16;i++){
-        for(var j=0;j<16;j++){
+    for(var i=0;i<MAP_H;i++){
+        for(var j=0;j<MAP_W;j++){
             var x = j*grid;
             var y = i*grid;
             switch(level[i][j]){
@@ -294,7 +317,6 @@ function DrawMap(level){
                 case 2: drawTarget(x, y); break;
                 case 3: drawBox(x, y); break;
                 case 4:
-                    // 绘制人物图片
                     var img = null;
                     if (curMan === upImg) img = upImg;
                     else if (curMan === downImg) img = downImg;
@@ -304,7 +326,6 @@ function DrawMap(level){
                     if (img && img.complete) {
                         cxt.drawImage(img, x, y, grid, grid);
                     } else {
-                        // 占位
                         cxt.fillStyle = "#ffaa88";
                         cxt.fillRect(x, y, grid, grid);
                     }
@@ -317,7 +338,20 @@ function DrawMap(level){
     }
 }
 
-// ========== 游戏逻辑（原样保留） ==========
+// ========== 滚动居中 ==========
+function centerScroll() {
+    if (!scrollContainer) return;
+    var containerWidth = scrollContainer.clientWidth;
+    var canvasWidth = can.offsetWidth;
+    if (canvasWidth > containerWidth) {
+        var scrollLeft = (canvasWidth - containerWidth) / 2;
+        scrollContainer.scrollLeft = scrollLeft;
+    } else {
+        scrollContainer.scrollLeft = 0;
+    }
+}
+
+// ========== 游戏逻辑 ==========
 function copyArray(a) { return JSON.parse(JSON.stringify(a)); }
 
 function initLevel(){
@@ -335,11 +369,11 @@ function initLevel(){
         curMap = copyArray(levels[iCurlevel]);
         curLevel = levels[iCurlevel];
     }
-    curMan = downImg;  // 默认朝下
+    curMan = downImg;
     historyStack = [];
-    offsetX = 0; offsetY = 0;
     InitMap();
     DrawMap(curMap);
+    setTimeout(centerScroll, 50);
 }
 
 function NextLevel(i){
@@ -413,10 +447,10 @@ function go(dir){
 }
 
 function Trygo(x1, y1, x2, y2) {
-    if (x1 < 0 || y1 < 0 || x1 >= 16 || y1 >= 16) return false;
+    if (x1 < 0 || y1 < 0 || x1 >= MAP_H || y1 >= MAP_W) return false;
     if (curMap[x1][y1] === 1) return false;
     if (curMap[x1][y1] === 3 || curMap[x1][y1] === 5) {
-        if (x2 < 0 || y2 < 0 || x2 >= 16 || y2 >= 16) return false;
+        if (x2 < 0 || y2 < 0 || x2 >= MAP_H || y2 >= MAP_W) return false;
         if (curMap[x2][y2] === 1) return false;
         if (curMap[x2][y2] === 3 || curMap[x2][y2] === 5) return false;
         curMap[x2][y2] = 3;
@@ -436,8 +470,8 @@ function Trygo(x1, y1, x2, y2) {
 }
 
 function checkFinish(){
-    for(let i=0;i<16;i++){
-        for(let j=0;j<16;j++){
+    for(let i=0;i<MAP_H;i++){
+        for(let j=0;j<MAP_W;j++){
             if( (curLevel[i][j] === 2 || curLevel[i][j] === 5) && curMap[i][j] !== 3 )
                 return false;
         }
@@ -448,7 +482,7 @@ function checkFinish(){
 function findPath(startX, startY, targetX, targetY){
     const dirs = [[-1,0,"up"],[1,0,"down"],[0,-1,"left"],[0,1,"right"]];
     let queue = [];
-    let visited = Array.from({length:16},()=>Array(16).fill(false));
+    let visited = Array.from({length:MAP_H},()=>Array(MAP_W).fill(false));
     queue.push({x:startX, y:startY, path:[]});
     visited[startX][startY] = true;
     while(queue.length>0){
@@ -459,7 +493,7 @@ function findPath(startX, startY, targetX, targetY){
         for(let [dx,dy,dir] of dirs){
             let nx = curr.x + dx;
             let ny = curr.y + dy;
-            if(nx<0||ny<0||nx>=16||ny>=16) continue;
+            if(nx<0||ny<0||nx>=MAP_H||ny>=MAP_W) continue;
             if(visited[nx][ny]) continue;
             if(curMap[nx][ny] === 1 || curMap[nx][ny] === 3) continue;
             visited[nx][ny] = true;
@@ -483,42 +517,86 @@ function runPath(path){
     }
     moving = true;
     go(path.shift());
-    setTimeout(()=>runPath(path), 150);
+    setTimeout(()=>runPath(path), 120);
 }
 
-function handleRealClick(clientX, clientY){
-    if(moving) return;
+// ========== 点击/滚动分离 ==========
+var touchStartX = 0, touchStartY = 0;
+var touchMoved = false;
+var touchMoveThreshold = 8;
+
+function handleCanvasClick(clientX, clientY) {
+    if (moving || touchMoved) return;
     const rect = can.getBoundingClientRect();
     const scaleX = can.width / rect.width;
     const scaleY = can.height / rect.height;
     const canvasX = (clientX - rect.left) * scaleX;
     const canvasY = (clientY - rect.top) * scaleY;
+    if (canvasX < 0 || canvasY < 0 || canvasX > can.width || canvasY > can.height) return;
     const gx = Math.floor(canvasX / grid);
     const gy = Math.floor(canvasY / grid);
-    if(gy<0||gx<0||gy>=16||gx>=16) return;
-    if(curMap[gy][gx]===3){
+    if (gy < 0 || gx < 0 || gy >= MAP_H || gx >= MAP_W) return;
+    
+    if (curMap[gy][gx] === 3) {
         let dx = gy - perPosition.x;
         let dy = gx - perPosition.y;
-        if(Math.abs(dx)+Math.abs(dy)===1){
-            if(dx===-1) go("up");
-            if(dx===1) go("down");
-            if(dy===-1) go("left");
-            if(dy===1) go("right");
+        if (Math.abs(dx) + Math.abs(dy) === 1) {
+            if (dx === -1) go("up");
+            if (dx === 1) go("down");
+            if (dy === -1) go("left");
+            if (dy === 1) go("right");
         }
         return;
     }
     goWalk(gy, gx);
 }
 
-// 事件绑定
-can.addEventListener("mousedown", (e) => {
-    handleRealClick(e.clientX, e.clientY);
-});
+// 触摸事件
 can.addEventListener("touchstart", (e) => {
-    e.preventDefault();
+    touchMoved = false;
     const t = e.touches[0];
-    handleRealClick(t.clientX, t.clientY);
+    touchStartX = t.clientX;
+    touchStartY = t.clientY;
+}, { passive: true });
+
+can.addEventListener("touchmove", (e) => {
+    const t = e.touches[0];
+    const dx = Math.abs(t.clientX - touchStartX);
+    const dy = Math.abs(t.clientY - touchStartY);
+    if (dx > touchMoveThreshold || dy > touchMoveThreshold) {
+        touchMoved = true;
+    }
+}, { passive: true });
+
+can.addEventListener("touchend", (e) => {
+    if (!touchMoved && e.changedTouches.length) {
+        const t = e.changedTouches[0];
+        handleCanvasClick(t.clientX, t.clientY);
+    }
+    touchMoved = false;
 });
+
+// 鼠标事件
+can.addEventListener("mousedown", (e) => {
+    touchMoved = false;
+    touchStartX = e.clientX;
+    touchStartY = e.clientY;
+});
+can.addEventListener("mousemove", (e) => {
+    const dx = Math.abs(e.clientX - touchStartX);
+    const dy = Math.abs(e.clientY - touchStartY);
+    if (dx > touchMoveThreshold || dy > touchMoveThreshold) {
+        touchMoved = true;
+    }
+});
+can.addEventListener("mouseup", (e) => {
+    if (!touchMoved) {
+        handleCanvasClick(e.clientX, e.clientY);
+    }
+    touchMoved = false;
+});
+
+// 键盘控制
 window.addEventListener("keydown", (e) => {
     if (e.key === 'ArrowUp') { e.preventDefault(); go('up'); }
     else if (e.key === 'ArrowDown') { e.preventDefault(); go('down'); }
@@ -544,12 +622,15 @@ customLevelSelect.addEventListener("change", ()=>{
     if(useCustom) initLevel();
 });
 
-// 启动：先加载图片，再初始化游戏
+window.addEventListener("resize", () => {
+    centerScroll();
+});
+
+// 启动
 loadImages(() => {
     generateFloorColors();
     initLevel();
     showMoveInfo();
-    // 激活音频
     can.addEventListener("click", function() {
         if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
     });
